@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel | Security Keypad</title>
+    <style>
+        :root {
+            --maingrpbgcolor: #141415;
+            --btngrpbgcolor: #1c1c1e;
+            --lcdbgcolor: #859c99;
+            --lcdtextcolor: #222;
+            --buttonbgcolor: #252525;
+            --buttontextcolor: #03a9f4;
+            --sensoroff: #333;
+            --ready-color: #52c41a;
+            --armed-color: #ff4d4f;
+            --trouble-color: #faad14;
+            --bordercolor: #444;
+        }
+
+        body { font-family: "Arial", sans-serif; background: #0a0a0b; color: #eee; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        
+        .dsc-container {
+            width: 100%; max-width: 360px; background-color: var(--maingrpbgcolor);
+            border: 1px solid var(--bordercolor); border-radius: 1.5rem; padding: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* LCD Screen */
+        .lcd-display {
+            background-color: var(--lcdbgcolor); color: var(--lcdtextcolor);
+            padding: 12px; border-radius: 8px; border: 2px solid #555;
+            font-family: "Courier New", monospace; font-weight: bold; margin-bottom: 10px;
+            min-height: 55px; text-align: center; line-height: 1.2;
+        }
+        .lcd-line { height: 1.2rem; overflow: hidden; white-space: nowrap; }
+
+        /* Status Icons */
+        .status-bar {
+            display: flex; justify-content: space-around; background: #000;
+            padding: 8px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--bordercolor);
+        }
+        .icon { font-size: 1.2rem; filter: grayscale(1) brightness(0.3); transition: 0.3s; }
+        .icon.active-ready { filter: none; color: var(--ready-color); }
+        .icon.active-armed { filter: none; color: var(--armed-color); }
+        .icon.active-trouble { filter: none; color: var(--trouble-color); }
+
+        /* Keypad Grid */
+        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        
+        .key {
+            background-color: var(--buttonbgcolor); color: var(--buttontextcolor);
+            border: 1px solid var(--bordercolor); border-radius: 10px;
+            padding: 12px 5px; cursor: pointer; text-align: center;
+            transition: all 0.1s; user-select: none;
+        }
+        .key:active { background-color: #444; transform: scale(0.95); }
+        .key-num { font-size: 1.2rem; font-weight: bold; display: block; }
+        .key-sub { font-size: 0.55rem; font-style: italic; opacity: 0.8; display: block; margin-top: 2px; }
+
+        .maint-link {
+            display: block; text-align: center; margin-top: 20px;
+            color: #555; text-decoration: none; font-size: 0.7rem; font-weight: bold;
+        }
+        .maint-link:hover { color: var(--buttontextcolor); }
+
+        /* LED simulation */
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+<div class="dsc-container">
+    <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; letter-spacing: 1px;">SENTINEL SECURITY SYSTEM</div>
+    
+    <div class="lcd-display">
+        <div id="line1" class="lcd-line">INITIALIZING...</div>
+        <div id="line2" class="lcd-line">PLEASE WAIT</div>
+    </div>
+
+    <div class="status-bar">
+        <span id="ico-ready" class="icon" title="Ready">✔</span>
+        <span id="ico-armed" class="icon" title="Armed">✖</span>
+        <span id="ico-trouble" class="icon" title="Trouble">⚠</span>
+        <span id="ico-ac" class="icon active-ready" title="AC Power">⚡</span>
+    </div>
+
+    <div class="keypad-grid">
+        <div class="key" onclick="press('1')"><span class="key-num">1</span><span class="key-sub">BYPASS</span></div>
+        <div class="key" onclick="press('2')"><span class="key-num">2</span><span class="key-sub">SERV</span></div>
+        <div class="key" onclick="press('3')"><span class="key-num">3</span><span class="key-sub">ALARMS</span></div>
+        <div class="key" onclick="press('4')"><span class="key-num">4</span><span class="key-sub">CHIME</span></div>
+        <div class="key" onclick="press('5')"><span class="key-num">5</span><span class="key-sub">CODES</span></div>
+        <div class="key" onclick="press('6')"><span class="key-num">6</span><span class="key-sub">FUNC</span></div>
+        <div class="key" onclick="press('7')"><span class="key-num">7</span><span class="key-sub">OUTP</span></div>
+        <div class="key" onclick="press('8')"><span class="key-num">8</span><span class="key-sub">PROG</span></div>
+        <div class="key" onclick="press('9')"><span class="key-num">9</span><span class="key-sub">NIGHT</span></div>
+        <div class="key" onclick="press('*')"><span class="key-num">*</span><span class="key-sub">SELECT</span></div>
+        <div class="key" onclick="press('0')"><span class="key-num">0</span><span class="key-sub"></span></div>
+        <div class="key" onclick="press('#')"><span class="key-num">#</span><span class="key-sub">ENTER</span></div>
+    </div>
+
+    <a href="maintenance.html" class="maint-link">SYSTEM MAINTENANCE</a>
+</div>
+
+<script>
+    let currentPin = "";
+    const stateNames = ["READY TO ARM", "EXIT DELAY", "SYSTEM ARMED", "ENTRY DELAY", "!! ALARM !!"];
+
+    function press(key) {
+        if (key === "#") {
+            submitPin();
+        } else if (key === "*") {
+            currentPin = ""; // Reset
+            updateDisplay("PIN RESET", "");
+        } else {
+            currentPin += key;
+            // Show asterisks on the second line
+            updateDisplay(null, "*".repeat(currentPin.length));
+            if (currentPin.length >= 4) submitPin();
+        }
+        if ('vibrate' in navigator) navigator.vibrate(20);
+    }
+
+    async function submitPin() {
+        try {
+            const res = await fetch('/api/auth', {
+                method: 'POST',
+                body: JSON.stringify({ pin: currentPin })
+            });
+            const data = await res.json();
+            
+            if (data.authenticated) {
+                // If armed, disarm. If disarmed, arm.
+                const endpoint = data.config.state === 0 ? '/api/arm' : '/api/disarm';
+                await fetch(endpoint);
+            } else {
+                updateDisplay("INVALID PIN", "TRY AGAIN");
+                setTimeout(refreshStatus, 2000);
+            }
+        } catch (e) {
+            updateDisplay("AUTH ERROR", "OFFLINE");
+        }
+        currentPin = "";
+    }
+
+    function updateDisplay(l1, l2) {
+        if (l1 !== null) document.getElementById('line1').innerText = l1;
+        if (l2 !== null) document.getElementById('line2').innerText = l2;
+    }
+
+    async function refreshStatus() {
+    try {
+        const res = await fetch('/api/status?t=' + Date.now());
+        const data = await res.json();
+        const c = data.config;
+
+        // 1. Determine LCD Line 1 (System State)
+        let line1 = stateNames[c.state] || "SENTINEL";
+
+        // 2. Determine LCD Line 2 (Priority Logic)
+        let line2 = c.violation || "SYSTEM READY";
+
+        // 3. Noonlight Multi-ID Logic
+        // Only process if notify is 4 (Noonlight)
+        if (c.notify === 4 && c.nl_ids) {
+            const fireId = c.nl_ids[0];
+            const polId  = c.nl_ids[1];
+            const medId  = c.nl_ids[2];
+            const othId  = c.nl_ids[3];
+
+            // Priority display: Fire > Medical > Police/Other
+            if (fireId && fireId.length > 0) {
+                line2 = "FIRE DISPATCHED";
+            } else if (medId && medId.length > 0) {
+                line2 = "MED DISPATCHED";
+            } else if (polId && polId.length > 0) {
+                line2 = "POLICE DISPATCHED";
+            } else if (othId && othId.length > 0) {
+                line2 = "ALARM ACTIVE";
+            }
+
+            // Blink the Trouble (!) icon if any ID is active
+            const anyActive = c.nl_ids.some(id => id && id.length > 0);
+            const troubleIcon = document.getElementById('ico-trouble');
+            if (anyActive) {
+                troubleIcon.classList.add('blink', 'active-trouble');
+            } else {
+                troubleIcon.classList.remove('blink', 'active-trouble');
+            }
+        }
+
+        updateDisplay(line1, line2);
+
+        // ... rest of LED updates ...
+    } catch (e) {
+        console.error("Status Update Failed", e);
+    }
+}
+    setInterval(refreshStatus, 2000);
+    refreshStatus();
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+/**
+ * @file server_cert.c
+ * @brief Embedded TLS certificate and key definitions
+ */
+
+#include "server_cert.h"
+
+// Embedded certificate and private key (PEM format)
+const char server_cert_pem[] = 
+"-----BEGIN CERTIFICATE-----\n"
+"MIIDqTCCApGgAwIBAgIUUbYnA4Cp6/XMRvrhor31kbj8FEIwDQYJKoZIhvcNAQEL\n"
+"BQAwZDERMA8GA1UEAwwIU2VudGluZWwxITAfBgNVBAoMGFNlbnRpbmVsIFNlY3Vy\n"
+"aXR5IFN5c3RlbTELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAk9IMRIwEAYDVQQHDAlD\n"
+"bGV2ZWxhbmQwHhcNMjYwMTI3MjIzNDM2WhcNMzYwMTI1MjIzNDM2WjBkMREwDwYD\n"
+"VQQDDAhTZW50aW5lbDEhMB8GA1UECgwYU2VudGluZWwgU2VjdXJpdHkgU3lzdGVt\n"
+"MQswCQYDVQQGEwJVUzELMAkGA1UECAwCT0gxEjAQBgNVBAcMCUNsZXZlbGFuZDCC\n"
+"ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJ2Hj4tOT/OMhOCVUcgzyliW\n"
+"0KkcfwkCc8KKsgZ1v3N0Ym+r8hy9JTiwaqcMCVUQGBpe9aTTkMY8OXwY4pCCYZ93\n"
+"lJo9xZQ8vG5zrTkU9nKWbauw6gblu3u12qdwnSkWbpmfDi7agu7Bn72dmkAS4AdW\n"
+"jM0F8xw37/sm3pDfCPPxtG5TFG0wM+4KIBUQ4rQMkcE4kAMqUaVTFvGQ22tEWCcs\n"
+"j7aNqL24BRC1ZqjxiOXeb8ozspDQxlWQPh2vdzA0Yvbjs1y8xD2pkr7OEmQdTY5A\n"
+"MgdNoSMqC0PWGXu4NN9Vbm4phVt2uJCFifXCQlVj2zaMYqu76nNzPsF8p4cuxOUC\n"
+"AwEAAaNTMFEwHQYDVR0OBBYEFOmoJ/seE5Kuf6+wU16+WICMYpYPMB8GA1UdIwQY\n"
+"MBaAFOmoJ/seE5Kuf6+wU16+WICMYpYPMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZI\n"
+"hvcNAQELBQADggEBADz1nGAPTF57PfaZVRNUo/VJt3AmuHvRl+nS0nAZAEwRstWM\n"
+"VJYNPhE0zcdFChfmMlsUFEZVRz1Q/TW/x1GVHhrIX6egRhppWGTKOMjE6vhqdRQK\n"
+"nqoUejcT0wTmkKVbdQ66AvQrO08uQzaZIVqE5zHyz0xHxqRX5y4suA3Du9gZr+JX\n"
+"dzT9cY0cpmlnXv81p3p1Kge48iIUVz9ur9aE1V4X0ZvsJ1cht2ifd1DgUJMIBJRF\n"
+"KCCe/55f+ve4yTDah8LfKawjdIRw7rCTQt78CI3PzX3KLz8jH/F3+e8neFngTMKf\n"
+"cDyHfMtFSOBsezTRfCC/Sj5EI8JWCTk62tszCzI=\n"
+"-----END CERTIFICATE-----\n"
+"-----BEGIN PRIVATE KEY-----\n"
+"MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCdh4+LTk/zjITg\n"
+"lVHIM8pYltCpHH8JAnPCirIGdb9zdGJvq/IcvSU4sGqnDAlVEBgaXvWk05DGPDl8\n"
+"GOKQgmGfd5SaPcWUPLxuc605FPZylm2rsOoG5bt7tdqncJ0pFm6Znw4u2oLuwZ+9\n"
+"nZpAEuAHVozNBfMcN+/7Jt6Q3wjz8bRuUxRtMDPuCiAVEOK0DJHBOJADKlGlUxbx\n"
+"kNtrRFgnLI+2jai9uAUQtWao8Yjl3m/KM7KQ0MZVkD4dr3cwNGL247NcvMQ9qZK+\n"
+"zhJkHU2OQDIHTaEjKgtD1hl7uDTfVW5uKYVbdriQhYn1wkJVY9s2jGKru+pzcz7B\n"
+"fKeHLsTlAgMBAAECggEAAvahErAOJeyORM689hXTG6yUoXeQZ+MCyKPMIbbsSZtP\n"
+"PxRFddji8Kwme0BiE1ZvzvkwukwGr1OLbdmC/kI4wE5N09FPnIIj4IrSX8Hw8iOd\n"
+"W+7l+l2gt1lqy+WEBSAobohU+//SmZB+9TXJ3ZZtT/bqbo0LEu/ZrB2lb14UEmYI\n"
+"pYb9NYaaM5RiAeZSykhMdBg5snnxiuLgDFPYczugefp0hS+FUVPclmDFg0uIoRYp\n"
+"8wV1pgUfbZco5iIBQqiUSbRl6y9Xfpq7RkUqPhQy2DrZP+X+14qW6R+9Ps56WOez\n"
+"2HcmNxMsv4wHmQhMptlSpR4dsoY5IpNrdZTvz5rsIQKBgQDJlcCGFotKPtEG82q/\n"
+"LdxDXiovEXisrLNomXKPUudgqFAt3fetodAWUwnhckDoKrWYbmks7ydTOQ18W64s\n"
+"dfbefCZe+NZ1inZPkm4b0Y/4d6aUcR7Bx1M8R80V3qmzcfEhrnXEvtsm0iEleY0n\n"
+"c/k9OgzMP9Zu0zTTIzwZZ1HuhQKBgQDIDWtZIDRvsEo3fL+3BKUGKkv40yzZpp1O\n"
+"hOZgc4zlQilPWoA/GUjhi8EgdNSIK02WWvw2Yj6QBDz6ZXF46wk6+463UpT+Xnq8\n"
+"RYevQLMPLBYEijLBn3ogjR7cixPiTTmZbwy1fxe+j5ur65FoAI0vlRUEO1utDZZk\n"
+"Wab0Bjo64QKBgFbFYTPWrGpvE6a8TKyyXueYtuu/x4P8atWRh6Bt/S68BJdZvm09\n"
+"A8c4Qz6J4aqOB9DvZdJztye5nTZ0eEqnFHa8Vf/3eMjrqvWhgEf1MtWvG0M2Vhjv\n"
+"ZcLC3WKWj9GwMC1hXUwtI0RYmu/4nGvpHdXfEPcyW2kk/M4NkqcUtE3JAoGBAJAB\n"
+"WOznSde8RzB6FGdiaIhvmhCbswVZ8pK7CDsV8q51WddNhlPll5kESRlcAEGlKky5\n"
+"YiSjw/VXl62HqI8qYZKb0rgUMjyJNkCgrHNzV3HsgkzyTmcirX8RFs4bL00P2g6g\n"
+"6b0cp7L9HUo8YIdFHlzKLD7Hm86OoVvLTWsLsI8BAoGASwIg7JtK0Pw1RiyPaXoN\n"
+"XH1/Tlm40L6gj+i9vtJ1VordYv/qopOjIqC02T5TsI1w+/7GQjAFWxmsIpkMgnPV\n"
+"oya4oQUlOILaQLvppUtfsPjSedx6iONKJm5aqkq/2AEcbA2nG2Km/Vgxj0LNpSRn\n"
+"TeDPklkWX3Yyp8S7z0DMCsY=\n"
+"-----END PRIVATE KEY-----\n";
+
+const unsigned int server_cert_pem_len = sizeof(server_cert_pem);

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/565/565547.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel Control Panel</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --panel: #1a1a1a;
+            --bezel: #2a2a2a;
+            --display: #001100;
+            --ready: #28a745;
+            --not: #ffc107;
+            --armed: #dc3545;
+            --alarm: #ff0000;
+            --accent: #00ff00;
+            --text-dim: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--bg);
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 8px;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .panel-container {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 8px solid #333;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .panel-name {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .panel-model {
+            font-size: 11px;
+            color: #666;
+            margin: 5px 0 0 0;
+            letter-spacing: 1px;
+        }
+
+        .display-area {
+            background: var(--display);
+            border: 3px solid #1a4d1a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .time-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+            margin: 0;
+            line-height: 1;
+            letter-spacing: 2px;
+        }
+
+        .date-display {
+            text-align: center;
+            font-size: 11px;
+            color: #00aa00;
+            text-transform: uppercase;
+            margin-top: 8px;
+            letter-spacing: 1px;
+        }
+
+        .status-display {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            padding: 8px;
+            border-top: 1px solid #1a4d1a;
+            min-height: 24px;
+            color: var(--accent);
+        }
+
+        .status-display.ready {
+            color: var(--ready);
+        }
+
+        .status-display.not-ready {
+            color: var(--not);
+        }
+
+        .status-display.armed {
+            color: var(--armed);
+        }
+
+        .indicators {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .indicator {
+            background: #222;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .indicator-label {
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-size: 9px;
+        }
+
+        .indicator-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #888;
+        }
+
+        .indicator.active .indicator-value {
+            color: var(--accent);
+        }
+
+        .pin-entry {
+            background: #222;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .pin-entry.visible {
+            display: block;
+        }
+
+        .pin-display {
+            background: #001100;
+            border: 2px solid #1a4d1a;
+            padding: 12px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 28px;
+            letter-spacing: 8px;
+            color: var(--accent);
+            min-height: 40px;
+            border-radius: 4px;
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .key {
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 6px;
+            padding: 16px 0;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            box-shadow: 0 4px 0 #1a1a1a;
+        }
+
+        .key:active {
+            background: var(--accent);
+            color: #000;
+            transform: translateY(2px);
+        }
+
+        .arm-buttons {
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .control-btn {
+            width: 100%;
+            text-align: center;
+            padding: 16px 4px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-family: inherit;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-arm {
+            background: var(--armed);
+            color: white;
+        }
+
+        .btn-disarm {
+            background: var(--ready);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .menu-section {
+            display: none;
+        }
+
+        .menu-section.visible {
+            display: block;
+        }
+
+        .menu-links {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .menu-link {
+            background: #444;
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            text-decoration: none;
+            color: white;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .setup-data {
+            background: #111;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            font-size: 10px;
+            color: #666;
+        }
+
+        /* 2FA Setup Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-title {
+            color: var(--accent);
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .secret-display {
+            background: #001100;
+            border: 2px solid #1a4d1a;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 12px;
+            color: var(--accent);
+            word-break: break-all;
+            border-radius: 4px;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: #222;
+            border: 2px solid #444;
+            color: var(--accent);
+            padding: 12px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            border-radius: 4px;
+            font-size: 16px;
+            text-align: center;
+            letter-spacing: 4px;
+        }
+
+        .modal-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        .modal-btn-primary {
+            background: var(--accent);
+            color: black;
+        }
+
+        .modal-btn-secondary {
+            background: #555;
+            color: white;
+        }
+
+        .modal-text {
+            color: #aaa;
+            font-size: 11px;
+            text-align: center;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="panel-container">
+        <div class="header">
+            <p class="panel-name">SENTINEL</p>
+            <p class="panel-model">Alarm Control Panel</p>
+        </div>
+
+        <div class="display-area">
+            <div>
+                <div class="time-display" id="live-time">--:--</div>
+                <div class="date-display" id="live-date">---</div>
+            </div>
+            <div class="status-display" id="status-display">CONNECTING...</div>
+        </div>
+
+        <div class="indicators">
+            <div class="indicator active">
+                <div class="indicator-label">Uptime</div>
+                <div class="indicator-value" id="nvs-up">--</div>
+            </div>
+            <div class="indicator active">
+                <div class="indicator-label">Temp</div>
+                <div class="indicator-value" id="temp-value">--°F</div>
+            </div>
+            <div class="indicator" id="power-indicator">
+                <div class="indicator-label">Power</div>
+                <div class="indicator-value" id="power-value">AC</div>
+            </div>
+            <div class="indicator" id="tamper-indicator">
+                <div class="indicator-label">Tamper</div>
+                <div class="indicator-value" id="tamper-value">OK</div>
+            </div>
+        </div>
+
+        <div class="pin-entry visible" id="pin-entry">
+            <div class="pin-display" id="pin-display"></div>
+            <div style="color: #ff4444; font-size: 14px; margin-bottom: 10px; text-align: center; min-height: 20px;"
+                id="pin-error-msg"></div>
+            <div class="keypad">
+                <div class="key" onclick="press(1)">1</div>
+                <div class="key" onclick="press(2)">2</div>
+                <div class="key" onclick="press(3)">3</div>
+                <div class="key" onclick="press(4)">4</div>
+                <div class="key" onclick="press(5)">5</div>
+                <div class="key" onclick="press(6)">6</div>
+                <div class="key" onclick="press(7)">7</div>
+                <div class="key" onclick="press(8)">8</div>
+                <div class="key" onclick="press(9)">9</div>
+                <div class="key" style="color:#ff4444" onclick="clr()">C</div>
+                <div class="key" onclick="press(0)">0</div>
+                <div class="key" style="color:#44ff44" onclick="submit()">OK</div>
+            </div>
+        </div>
+
+        <div class="menu-section" id="menu-section">
+            <div class="arm-buttons" id="arm-buttons">
+                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'away'})">AWAY</button>
+                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'stay'})">STAY</button>
+                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'night'})">NIGHT</button>
+                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'vacation'})">VAC</button>
+            </div>
+            <div id="disarm-buttons" style="display:none;">
+                <button class="control-btn btn-disarm" style="width:100%" onclick="doAction('/api/disarm', {})">DISARM
+                    SYSTEM</button>
+            </div>
+
+            <div class="menu-links" id="admin-menu" style="display:none;">
+                <a href="users.html" class="menu-link">Users</a>
+                <a href="devices.html" class="menu-link">📱ESPHOME Devices</a>
+                <a href="cameras.html" class="menu-link">📹 Cameras</a>
+                <a href="cameras_live.html" class="menu-link">📹 Live View</a>
+                <a href="tuya.html" class="menu-link">📱TUYA Devices</a>
+                <a href="scheduler.html" class="menu-link">⏰ Scheduler</a>
+                <a href="zstatus.html" class="menu-link">Status</a>
+                <a href="audit.html" class="menu-link">Audit</a>
+                <a href="tester.html" class="menu-link">Tester</a>
+            </div>
+
+            <button class="control-btn" style="background: #555; color: white; width: 100%;"
+                onclick="sessionStorage.removeItem('sentinel_token'); location.reload()">LOGOUT</button>
+        </div>
+
+        <div class="footer"
+            style="text-align: center; font-size: 9px; color: #444; margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
+            <p>System Status: OK | Secure</p>
+        </div>
+    </div>
+
+    <!-- 2FA Setup Modal -->
+    <div class="modal-overlay" id="totp-modal">
+        <div class="modal-content">
+            <div class="modal-title">🔐 Two-Factor Authentication Required</div>
+            <div class="modal-text">
+                Before you can arm/disarm the system, you must set up 2-Factor Authentication.
+            </div>
+            <div class="modal-text" style="font-size: 13px; margin-top: 10px;">
+                We've sent a setup code to your email. Check your inbox and enter it below:
+            </div>
+            <div class="modal-text" style="font-size: 11px; color: #999;">
+                (Check spam folder if you don't see it)
+            </div>
+            <div class="modal-text">Enter the 2FA setup key from your email:</div>
+            <input type="text" class="modal-input" id="secret-input-box" maxlength="16" placeholder="ABCD1234EFGH5678"
+                style="font-family: monospace; letter-spacing: 2px;">
+            <div class="modal-text" style="margin-top: 15px;">Then enter a 6-digit code from your authenticator app:
+            </div>
+            <input type="text" class="modal-input" id="totp-input" maxlength="6" placeholder="000000"
+                inputmode="numeric">
+            <button class="modal-btn modal-btn-primary" onclick="verify2FA()">Verify & Enable</button>
+            <button class="modal-btn modal-btn-secondary"
+                onclick="sessionStorage.removeItem('sentinel_token'); location.reload()">Cancel & Logout</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPin = "";
+        let currentUser = "";
+        let totpSecret = "";
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-time').innerText = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            document.getElementById('live-date').innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' });
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function press(n) { if (currentPin.length < 6) { currentPin += n; document.getElementById('pin-display').innerText = "*".repeat(currentPin.length); } }
+        function clr() { currentPin = ""; document.getElementById('pin-display').innerText = ""; }
+
+        // Generate random Base32 secret (16 chars = 80 bits)
+        function generateSecret() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            let secret = '';
+            for (let i = 0; i < 16; i++) {
+                secret += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return secret;
+        }
+
+        // Send 2FA setup key via email
+        async function showTOTPSetup(username) {
+            try {
+                totpSecret = generateSecret();
+                currentUser = username;
+
+                // Send setup key via email (works for config.pin user or regular users)
+                try {
+                    const emailResp = await fetch('/api/users/send-totp-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: username,
+                            totp_secret: totpSecret
+                        })
+                    });
+                    const emailData = await emailResp.json();
+                    console.log('2FA setup email sent:', emailData);
+                } catch (emailErr) {
+                    console.error('Failed to send 2FA setup email:', emailErr);
+                }
+
+                // Store it and show the setup input
+                document.getElementById('secret-input-box').value = '';
+                document.getElementById('totp-input').value = '';
+
+                // Show modal
+                document.getElementById('totp-modal').classList.add('visible');
+
+                console.log(`2FA setup initiated for ${username}. Secret sent to ${userEmail}`);
+            } catch (e) {
+                console.error(e);
+                alert('Error initiating 2FA setup. Please try again.');
+            }
+        }
+
+        async function verify2FA() {
+            const enteredSecret = document.getElementById('secret-input-box').value.toUpperCase();
+            const totpCode = document.getElementById('totp-input').value;
+
+            if (!enteredSecret) {
+                alert('Please enter the setup key from your email');
+                return;
+            }
+            if (totpCode.length !== 6) {
+                alert('Please enter a 6-digit code');
+                return;
+            }
+
+            // Verify the entered secret matches what we generated
+            if (enteredSecret !== totpSecret) {
+                alert('Setup key does not match. Please copy it exactly from your email.');
+                return;
+            }
+
+            try {
+                // Save TOTP secret to server
+                await fetch('/api/users/set-totp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: currentUser,
+                        totp_secret: totpSecret
+                    })
+                });
+
+                // Verify TOTP code works
+                const authResponse = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pin: currentPin,
+                        totp: totpCode,
+                        step: 'totp'
+                    })
+                });
+
+                const authData = await authResponse.json();
+                if (authData.authenticated) {
+                    document.getElementById('totp-modal').classList.remove('visible');
+                    alert('2FA Enabled Successfully! You can now control the system.');
+                    check();
+                } else {
+                    alert('Invalid TOTP code. Please try again.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error setting up 2FA. Please try again.');
+            }
+        }
+
+        async function submit() {
+            try {
+                // Clear previous error
+                document.getElementById('pin-error-msg').innerText = '';
+
+                // Step 1: Validate PIN first
+                const r = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: currentPin, step: 'pin' })
+                });
+                const d = await r.json();
+
+                if (d.authenticated) {
+                    sessionStorage.setItem('sentinel_token', 'valid');
+                    currentUser = d.name;
+
+                    // Grant access (if 2FA required, it will be checked on disarm)
+                    document.getElementById('pin-entry').classList.remove('visible');
+                    document.getElementById('menu-section').classList.add('visible');
+                    if (d.is_admin) document.getElementById('admin-menu').style.display = "grid";
+                    check();
+                } else {
+                    // Show error in PIN entry modal
+                    document.getElementById('pin-error-msg').innerText = 'INVALID PIN - TRY AGAIN';
+                    clr();
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('pin-error-msg').innerText = 'ERROR - TRY AGAIN';
+                clr();
+            }
+        }
+
+        function updateUI(cfg) {
+            const state = parseInt(cfg.state || 0);
+            const isReady = !!(cfg.ready);
+            const display = document.getElementById('status-display');
+
+            display.innerText = (state === 0) ? (isReady ? "READY TO ARM" : "NOT READY") : "SYSTEM ARMED";
+            display.className = "status-display " + ((state === 0) ? (isReady ? "ready" : "not-ready") : "armed");
+
+            document.getElementById('arm-buttons').style.display = (state === 0) ? "grid" : "none";
+            document.getElementById('disarm-buttons').style.display = (state !== 0) ? "block" : "none";
+
+            if (cfg.uptime) document.getElementById('nvs-up').innerText = cfg.uptime;
+            if (cfg.mac) document.getElementById('nvs-mac').innerText = cfg.mac;
+        }
+
+        async function check() {
+            try {
+                const r = await fetch('/api/status');
+                const d = await r.json();
+                if (d.config) updateUI(d.config);
+
+                const r2 = await fetch('/status');
+                const d2 = await r2.json();
+                if (d2.temperature_f !== undefined) {
+                    document.getElementById('temp-value').innerText = Math.round(d2.temperature_f) + '°F';
+                } else if (d2.temperature_c !== undefined) {
+                    // Fallback to calculating from Celsius if temperature_f not available
+                    document.getElementById('temp-value').innerText = Math.round((d2.temperature_c * 9 / 5) + 32) + '°F';
+                }
+
+                // Update power status
+                const powerIndicator = document.getElementById('power-indicator');
+                const powerValue = document.getElementById('power-value');
+                if (d2.on_backup_power) {
+                    powerValue.innerText = 'BATTERY';
+                    powerIndicator.classList.add('active');
+                    powerIndicator.style.backgroundColor = '#ff9800';
+                } else {
+                    powerValue.innerText = 'AC';
+                    powerIndicator.classList.remove('active');
+                }
+
+                // Update tamper status
+                const tamperIndicator = document.getElementById('tamper-indicator');
+                const tamperValue = document.getElementById('tamper-value');
+                if (d2.tamper_detected) {
+                    tamperValue.innerText = 'ALERT!';
+                    tamperIndicator.classList.add('active');
+                    tamperIndicator.style.backgroundColor = '#f44336';
+                } else {
+                    tamperValue.innerText = 'OK';
+                    tamperIndicator.classList.remove('active');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function doAction(url, body) {
+            body.pin = currentPin; // Send current pin for validation
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            setTimeout(() => location.reload(), 500);
+        }
+
+        setInterval(check, 4000);
+        check();
+    </script>
+</body>
+
+</html>

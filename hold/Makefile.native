@@ -1,0 +1,89 @@
+#!/usr/bin/make -f
+# Native x86_64 Linux build for test_linux
+# Completely isolated from ESP-IDF cross-compiler environment
+
+# Force native compilation
+override CC := /usr/bin/gcc
+override CXX := /usr/bin/g++
+override CFLAGS := -g -O0 -Wall -m64
+override LDFLAGS := 
+override AR := /usr/bin/ar
+override RANLIB := /usr/bin/ranlib
+
+# Unset any cross-compiler variables
+unexport CROSS_COMPILE
+unexport CC_FOR_BUILD
+unexport LDFLAGS_FOR_BUILD
+
+TARGET = sentinel_test
+
+# --- DIRECTORIES ---
+COMP_BASE = ../components
+STORAGE_DIR  = $(COMP_BASE)/storage
+COMMS_DIR    = $(COMP_BASE)/comms
+MONGOOSE_DIR = $(COMP_BASE)/mongoose
+MQTT_APP_DIR = $(COMP_BASE)/mqtt_app
+ENGINE_DIR   = $(COMP_BASE)/engine
+HAL_DIR      = $(COMP_BASE)/hardware
+
+# --- INCLUDES ---
+INCLUDES = -I$(STORAGE_DIR) -I$(COMMS_DIR) -I$(MONGOOSE_DIR) \
+           -I$(MQTT_APP_DIR) -I$(ENGINE_DIR) -I$(HAL_DIR) -I.
+
+# --- COMPILER FLAGS (Native Linux build) ---
+CFLAGS += $(INCLUDES) \
+         -DMG_ENABLE_MQTT=1 \
+         -DMG_ENABLE_HTTP=1 \
+         -DMG_ENABLE_TLS=1 \
+         -DMG_ENABLE_OPENSSL=1 \
+         -DMG_TLS=MG_TLS_OPENSSL
+
+# --- LINKER FLAGS ---
+LIBS = -Wl,--no-as-needed -lssl -lcrypto -lcurl -lcjson -lpthread -lm
+
+# --- HARDWARE WRAPPERS (mock implementations) ---
+WRAPS = -Wl,--wrap=hal_get_zone_state \
+        -Wl,--wrap=hal_set_relay \
+        -Wl,--wrap=hal_set_siren \
+        -Wl,--wrap=hal_set_strobe \
+        -Wl,--wrap=hal_get_relay_state
+
+# --- OBJECT FILES ---
+OBJ = $(STORAGE_DIR)/storage_mgr.o \
+      $(COMMS_DIR)/dispatcher.o \
+      $(COMMS_DIR)/noonlight.o \
+      $(COMMS_DIR)/telegram.o \
+      $(COMMS_DIR)/net.o \
+      $(COMMS_DIR)/ha_mqtt.o \
+      $(MONGOOSE_DIR)/mongoose.o \
+      $(MQTT_APP_DIR)/mqtt_logic.o \
+      $(COMMS_DIR)/smtp.o \
+      $(ENGINE_DIR)/user_mgr.o \
+      $(ENGINE_DIR)/logging.o \
+      $(ENGINE_DIR)/engine.o \
+      $(ENGINE_DIR)/monitor.o \
+      $(ENGINE_DIR)/system_monitoring.o \
+      main_mock.o
+
+# --- BUILD RULES ---
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJ)
+	@echo "Linking native x86_64 binary: $(TARGET)"
+	$(CC) $(OBJ) -o $(TARGET) $(LIBS) $(WRAPS)
+	@file $(TARGET)
+
+# Standard rule for local .c files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Pattern rule for component .c files
+$(COMP_BASE)/%.o: $(COMP_BASE)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	find .. -name "*.o" -delete
+	rm -f $(TARGET)
+	@echo "Cleaned"

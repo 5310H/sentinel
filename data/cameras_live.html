@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel - Live Camera View</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e17;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        /* Grid Controls */
+        .grid-size-controls {
+            display: flex;
+            gap: 5px;
+            background: rgba(255,255,255,0.1);
+            padding: 5px;
+            border-radius: 8px;
+        }
+        
+        button {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.4);
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.active {
+            background: #3498db;
+            border-color: #2980b9;
+        }
+        
+        .refresh-btn {
+            background: #27ae60;
+            border-color: #229954;
+        }
+        
+        .refresh-btn:hover {
+            background: #2ecc71;
+        }
+        
+        .back-btn {
+            background: #95a5a6;
+            border-color: #7f8c8d;
+        }
+        
+        .back-btn:hover {
+            background: #bdc3c7;
+        }
+        
+        /* Camera Grid */
+        .camera-grid {
+            display: grid;
+            gap: 15px;
+            padding: 15px;
+            min-height: calc(100vh - 70px);
+        }
+        
+        .grid-1x1 { 
+            grid-template-columns: 1fr;
+        }
+        
+        .grid-2x2 { 
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: minmax(300px, 1fr);
+        }
+        
+        .grid-3x3 { 
+            grid-template-columns: repeat(3, 1fr);
+            grid-auto-rows: minmax(250px, 1fr);
+        }
+        
+        .grid-4x4 { 
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: minmax(200px, 1fr);
+        }
+        
+        /* Camera Tile */
+        .camera-tile {
+            position: relative;
+            background: #1a1f2e;
+            border: 2px solid #2c3e50;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        
+        .camera-tile:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: #3498db;
+            box-shadow: 0 8px 16px rgba(52, 152, 219, 0.3);
+        }
+        
+        .camera-tile.offline {
+            opacity: 0.6;
+            border-color: #7f8c8d;
+        }
+        
+        .camera-tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .camera-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1a1f2e;
+            color: #7f8c8d;
+        }
+        
+        .camera-placeholder svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
+            opacity: 0.3;
+        }
+        
+        /* Camera Overlay */
+        .camera-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .camera-name {
+            font-weight: 600;
+            font-size: 16px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .camera-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .status-dot.online { 
+            background: #2ecc71;
+            box-shadow: 0 0 10px #2ecc71;
+        }
+        
+        .status-dot.offline { 
+            background: #e74c3c;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.6;
+                transform: scale(0.9);
+            }
+        }
+        
+        /* Fullscreen Modal */
+        .fullscreen-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.98);
+            z-index: 1000;
+            animation: fadeIn 0.2s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .fullscreen-modal.active { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            background: #e74c3c;
+            border-color: #c0392b;
+            font-size: 16px;
+            padding: 8px 20px;
+        }
+        
+        .close-btn:hover {
+            background: #c0392b;
+        }
+        
+        .modal-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+        
+        .modal-content img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .modal-controls {
+            background: #1a1f2e;
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .snapshot-btn {
+            background: #3498db;
+            border-color: #2980b9;
+        }
+        
+        .snapshot-btn:hover {
+            background: #2980b9;
+        }
+        
+        .record-btn {
+            background: #e74c3c;
+            border-color: #c0392b;
+        }
+        
+        .record-btn:hover {
+            background: #c0392b;
+        }
+        
+        .settings-btn {
+            background: #95a5a6;
+            border-color: #7f8c8d;
+        }
+        
+        .settings-btn:hover {
+            background: #7f8c8d;
+        }
+        
+        /* Loading Indicator */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Info Banner */
+        .info-banner {
+            background: #34495e;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #ecf0f1;
+        }
+        
+        .info-banner.warning {
+            background: #f39c12;
+            color: #000;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .grid-3x3, .grid-4x4 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            .camera-name {
+                font-size: 14px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .grid-2x2, .grid-3x3, .grid-4x4 {
+                grid-template-columns: 1fr !important;
+            }
+            
+            .header-controls {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>📹 Sentinel - Live Camera View</h1>
+        <div class="header-controls">
+            <div class="grid-size-controls">
+                <button onclick="setGridSize(1)" id="grid-1" title="Single Camera">1×1</button>
+                <button onclick="setGridSize(2)" id="grid-2" class="active" title="4 Cameras">2×2</button>
+                <button onclick="setGridSize(3)" id="grid-3" title="9 Cameras">3×3</button>
+                <button onclick="setGridSize(4)" id="grid-4" title="16 Cameras">4×4</button>
+            </div>
+            <label style="display: flex; align-items: center; gap: 5px; font-size: 13px;">
+                <input type="checkbox" id="mjpeg-toggle" checked title="Use MJPEG streaming for smoother video">
+                🎥 MJPEG
+            </label>
+            <button class="refresh-btn" onclick="refreshAll()" title="Refresh All">
+                🔄 Refresh
+            </button>
+            <button class="back-btn" onclick="window.location.href='/cameras.html'" title="Camera Config">
+                ⚙️ Config
+            </button>
+        </div>
+    </div>
+    
+    <!-- Info Banner -->
+    <div class="info-banner" id="info-banner" style="display: none;"></div>
+    
+    <!-- Camera Grid -->
+    <div id="camera-grid" class="camera-grid grid-2x2">
+        <!-- Cameras will be loaded dynamically -->
+    </div>
+    
+    <!-- Fullscreen Modal -->
+    <div id="fullscreen-modal" class="fullscreen-modal">
+        <div class="modal-header">
+            <h2 id="modal-camera-name">Camera Name</h2>
+            <button class="close-btn" onclick="closeFullscreen()">✕ Close</button>
+        </div>
+        <div class="modal-content">
+            <img id="fullscreen-image" src="" alt="Camera Feed">
+        </div>
+        <div class="modal-controls">
+            <button class="snapshot-btn" onclick="takeSnapshot()">
+                📷 Snapshot
+            </button>
+            <button class="record-btn" onclick="toggleRecording()">
+                🔴 Record
+            </button>
+            <button class="settings-btn" onclick="openSettings()">
+                ⚙️ Settings
+            </button>
+            <button onclick="closeFullscreen()">
+                ↩️ Back to Grid
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // Global state
+        let cameras = [];
+        let gridSize = 2;
+        let refreshInterval = null;
+        let fullscreenRefreshInterval = null;
+        let currentCamera = null;
+        let useMJPEG = true; // MJPEG mode enabled by default
+        let mjpegFallback = {}; // Track cameras that don't support MJPEG
+        const REFRESH_RATE_GRID = 1000; // 1 FPS for grid
+        const REFRESH_RATE_FULLSCREEN = 500; // 2 FPS for fullscreen
+        
+        // Load cameras from API
+        async function loadCameras() {
+            try {
+                const response = await fetch('/api/cameras');
+                if (!response.ok) throw new Error('Failed to fetch cameras');
+                
+                const data = await response.json();
+                cameras = data.cameras || [];
+                
+                if (cameras.length === 0) {
+                    showInfo('No cameras configured. Go to Camera Config to add cameras.', 'warning');
+                } else {
+                    showInfo(`Loaded ${cameras.length} camera(s). Auto-refresh every ${REFRESH_RATE_GRID/1000}s.`);
+                    setTimeout(() => hideInfo(), 3000);
+                }
+                
+                renderGrid();
+                startAutoRefresh();
+            } catch (error) {
+                console.error('Failed to load cameras:', error);
+                showInfo('Error loading cameras. Check console for details.', 'warning');
+                // Show empty grid with placeholder
+                cameras = [];
+                renderGrid();
+            }
+        }
+        
+        // Render camera grid
+        function renderGrid() {
+            const grid = document.getElementById('camera-grid');
+            grid.innerHTML = '';
+            
+            if (cameras.length === 0) {
+                grid.innerHTML = `
+                    <div class="camera-tile">
+                        <div class="camera-placeholder">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 14H4V7h16v12zM12 9c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/>
+                            </svg>
+                            <p>No cameras configured</p>
+                            <p style="font-size: 12px; margin-top: 10px;">
+                                <a href="/cameras.html" style="color: #3498db;">Add cameras</a> to start viewing
+                            </p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            cameras.forEach((camera, index) => {
+                const tile = document.createElement('div');
+                tile.className = `camera-tile ${camera.enabled ? '' : 'offline'}`;
+                tile.onclick = () => openFullscreen(camera, index);
+                
+                const imageSrc = useMJPEG && !mjpegFallback[index] 
+                    ? `/api/camera/${index}/stream`
+                    : `/api/camera/${index}/snapshot?t=${Date.now()}`;
+                
+                tile.innerHTML = `
+                    <img id="camera-${index}" 
+                         src="${imageSrc}"
+                         onerror="handleImageError(${index})"
+                         onload="handleImageLoad(${index})"
+                         style="display: none;"
+                         alt="${camera.friendly_name}">
+                    <div class="camera-placeholder" id="placeholder-${index}">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 14H4V7h16v12zM12 9c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/>
+                        </svg>
+                        <p>Loading...</p>
+                    </div>
+                    <div class="camera-overlay">
+                        <span class="camera-name">${camera.friendly_name || 'Camera ' + index}</span>
+                        <div class="camera-status">
+                            <span class="status-dot ${camera.enabled ? 'online' : 'offline'}"></span>
+                            <span id="status-${index}">${camera.enabled ? (useMJPEG && !mjpegFallback[index] ? 'MJPEG' : 'Live') : 'Offline'}</span>
+                        </div>
+                    </div>
+                `;
+                
+                const img = tile.querySelector('img');
+                const placeholder = tile.querySelector('.camera-placeholder');
+                
+                // Set loading timeout (10 seconds)
+                const loadTimeout = setTimeout(() => {
+                    if (img.style.display === 'none') {
+                        handleImageError(index);
+                    }
+                }, 10000);
+                
+                img.onload = () => {
+                    clearTimeout(loadTimeout);
+                    handleImageLoad(index);
+                };
+                img.onerror = () => {
+                    clearTimeout(loadTimeout);
+                    handleImageError(index);
+                };
+                
+                grid.appendChild(tile);
+            });
+        }
+        
+        // Handle image loading success
+        function handleImageLoad(cameraId) {
+            const img = document.getElementById(`camera-${cameraId}`);
+            const placeholder = document.getElementById(`placeholder-${cameraId}`);
+            if (img && placeholder) {
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+            }
+        }
+        
+        // Handle image loading errors (MJPEG fallback)
+        function handleImageError(cameraId) {
+            const img = document.getElementById(`camera-${cameraId}`);
+            const status = document.getElementById(`status-${cameraId}`);
+            
+            if (useMJPEG && !mjpegFallback[cameraId]) {
+                // MJPEG failed, fallback to snapshots
+                console.warn(`MJPEG not available for camera ${cameraId}, falling back to snapshots`);
+                mjpegFallback[cameraId] = true;
+                img.src = `/api/camera/${cameraId}/snapshot?t=${Date.now()}`;
+                if (status) status.textContent = 'Live';
+                showInfo('MJPEG not available, using snapshots', 'warning');
+                setTimeout(() => hideInfo(), 3000);
+            } else {
+                // Show placeholder on error
+                const placeholder = document.getElementById(`placeholder-${cameraId}`);
+                if (placeholder) {
+                    placeholder.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <p>Camera Offline</p>
+                    `;
+                    placeholder.style.display = 'flex';
+                }
+                img.style.display = 'none';
+            }
+        }
+        
+        // Set grid size
+        function setGridSize(size) {
+            gridSize = size;
+            const grid = document.getElementById('camera-grid');
+            grid.className = `camera-grid grid-${size}x${size}`;
+            
+            // Update button states
+            document.querySelectorAll('.grid-size-controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`grid-${size}`).classList.add('active');
+        }
+        
+        // Auto-refresh snapshots (only when not using MJPEG)
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            
+            // Skip auto-refresh if using MJPEG (streams auto-update)
+            if (useMJPEG) return;
+            
+            refreshInterval = setInterval(() => {
+                cameras.forEach((camera, index) => {
+                    if (camera.enabled && !useMJPEG) {
+                        const img = document.getElementById(`camera-${index}`);
+                        if (img) {
+                            // Update snapshot with cache-busting timestamp
+                            img.src = `/api/camera/${index}/snapshot?t=${Date.now()}`;
+                        }
+                    }
+                });
+            }, REFRESH_RATE_GRID);
+        }
+        
+        // Manual refresh all
+        function refreshAll() {
+            cameras.forEach((camera, index) => {
+                const img = document.getElementById(`camera-${index}`);
+                if (img) {
+                    if (useMJPEG && !mjpegFallback[index]) {
+                        // Reload MJPEG stream
+                        const currentSrc = img.src;
+                        img.src = '';
+                        setTimeout(() => img.src = currentSrc, 100);
+                    } else {
+                        // Update snapshot
+                        img.src = `/api/camera/${index}/snapshot?t=${Date.now()}`;
+                    }
+                }
+            });
+            showInfo('Refreshing all cameras...');
+            setTimeout(() => hideInfo(), 2000);
+        }
+        
+        // Open fullscreen view
+        function openFullscreen(camera, index) {
+            currentCamera = { camera, index };
+            const modal = document.getElementById('fullscreen-modal');
+            const image = document.getElementById('fullscreen-image');
+            const name = document.getElementById('modal-camera-name');
+            
+            name.textContent = camera.friendly_name || `Camera ${index}`;
+            
+            // Use MJPEG if enabled and available, otherwise snapshots
+            if (useMJPEG && !mjpegFallback[index]) {
+                image.src = `/api/camera/${index}/stream`;
+                image.onerror = () => {
+                    // Fallback to snapshots if MJPEG fails in fullscreen
+                    console.warn(`MJPEG failed in fullscreen for camera ${index}`);
+                    mjpegFallback[index] = true;
+                    image.src = `/api/camera/${index}/snapshot?t=${Date.now()}`;
+                    startFullscreenRefresh(index);
+                    showInfo('MJPEG unavailable, using snapshots', 'warning');
+                };
+            } else {
+                image.src = `/api/camera/${index}/snapshot?t=${Date.now()}`;
+                // Start faster refresh for fullscreen (snapshot mode only)
+                startFullscreenRefresh(index);
+            }
+            
+            modal.classList.add('active');
+            
+            // Stop grid refresh while in fullscreen
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+        
+        // Close fullscreen
+        function closeFullscreen() {
+            const modal = document.getElementById('fullscreen-modal');
+            modal.classList.remove('active');
+            
+            if (fullscreenRefreshInterval) {
+                clearInterval(fullscreenRefreshInterval);
+                fullscreenRefreshInterval = null;
+            }
+            
+            currentCamera = null;
+            
+            // Resume grid refresh
+            startAutoRefresh();
+        }
+        
+        // Refresh fullscreen snapshot (only for snapshot mode, MJPEG streams auto-update)
+        function startFullscreenRefresh(cameraId) {
+            if (fullscreenRefreshInterval) {
+                clearInterval(fullscreenRefreshInterval);
+            }
+            
+            // Skip if using MJPEG (streams auto-update)
+            if (useMJPEG && !mjpegFallback[cameraId]) return;
+            
+            fullscreenRefreshInterval = setInterval(() => {
+                const image = document.getElementById('fullscreen-image');
+                if (image && !image.src.includes('/stream')) {
+                    image.src = `/api/camera/${cameraId}/snapshot?t=${Date.now()}`;
+                }
+            }, REFRESH_RATE_FULLSCREEN);
+        }
+        
+        // Take snapshot (download)
+        async function takeSnapshot() {
+            if (!currentCamera) return;
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `${currentCamera.camera.friendly_name}_${timestamp}.jpg`;
+            
+            try {
+                const response = await fetch(`/api/camera/${currentCamera.index}/snapshot`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                
+                window.URL.revokeObjectURL(url);
+                showInfo('Snapshot saved!');
+                setTimeout(() => hideInfo(), 2000);
+            } catch (error) {
+                console.error('Failed to save snapshot:', error);
+                showInfo('Failed to save snapshot', 'warning');
+            }
+        }
+        
+        // Toggle recording (placeholder)
+        function toggleRecording() {
+            showInfo('Recording feature coming soon!', 'warning');
+            setTimeout(() => hideInfo(), 3000);
+        }
+        
+        // Open camera settings
+        function openSettings() {
+            if (currentCamera) {
+                window.location.href = `/cameras.html?edit=${currentCamera.index}`;
+            }
+        }
+        
+        // Show info banner
+        function showInfo(message, type = 'info') {
+            const banner = document.getElementById('info-banner');
+            banner.textContent = message;
+            banner.className = `info-banner ${type}`;
+            banner.style.display = 'block';
+        }
+        
+        // Hide info banner
+        function hideInfo() {
+            const banner = document.getElementById('info-banner');
+            banner.style.display = 'none';
+        }
+        
+        // MJPEG toggle handler
+        document.getElementById('mjpeg-toggle').addEventListener('change', function() {
+            useMJPEG = this.checked;
+            console.log(`MJPEG mode: ${useMJPEG ? 'enabled' : 'disabled'}`);
+            
+            // Reset fallback tracking
+            mjpegFallback = {};
+            
+            // Reload all cameras with new mode
+            if (cameras.length > 0) {
+                displayCameras();
+                startAutoRefresh();
+                
+                const mode = useMJPEG ? 'MJPEG streaming' : 'snapshot polling';
+                showInfo(`Switched to ${mode} mode`);
+                setTimeout(() => hideInfo(), 3000);
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeFullscreen();
+            }
+            if ((e.key === 'f' || e.key === 'F') && currentCamera) {
+                const image = document.getElementById('fullscreen-image');
+                if (image.requestFullscreen) {
+                    image.requestFullscreen();
+                }
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                refreshAll();
+            }
+            if (e.key >= '1' && e.key <= '4') {
+                setGridSize(parseInt(e.key));
+            }
+            if (e.key === 'm' || e.key === 'M') {
+                // Toggle MJPEG with keyboard
+                document.getElementById('mjpeg-toggle').click();
+            }
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+            if (fullscreenRefreshInterval) clearInterval(fullscreenRefreshInterval);
+        });
+        
+        // Initialize on page load
+        loadCameras();
+    </script>
+</body>
+</html>

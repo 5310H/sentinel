@@ -1,0 +1,34 @@
+# Camera test commands for RTSP and HTTP snapshot
+
+# 1. Test RTSP stream playback (replace with your actual RTSP URL if needed)
+ffplay -rtsp_transport tcp rtsp://thingino:thingino@192.168.69.46:554/ch0
+
+# 2. Grab a snapshot from RTSP stream using ffmpeg
+ffmpeg -rtsp_transport tcp -i "rtsp://thingino:thingino@192.168.69.46:554/ch0" -frames:v 1 -q:v 2 ./test_snapshot.jpg
+
+# 3. Test HTTP snapshot (if available)
+curl -u thingino:thingino http://192.168.69.46/snapshot -o ./test_http_snapshot.jpg
+
+# 4. (Optional) Check snapshot resolution
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 ./test_snapshot.jpg
+
+# 5. (Optional) Test authentication failure
+ffplay -rtsp_transport tcp rtsp://wrong:wrong@192.168.69.46:554/ch0
+
+# 6. (Optional) MJPEG stream test (if supported)
+ffplay http://192.168.69.46/stream.mjpeg
+
+# 7. Example cameras.json entry for RTSP camera
+# Place this in test_linux/data/cameras.json
+# [
+#   {
+#     "hostname": "192.168.69.46",
+#     "port": 554,
+#     "friendly_name": "T31 Prudynt Camera",
+#     "camera_id": "ch0",
+#     "username": "thingino",
+#     "password": "thingino",
+#     "protocol": "rtsp",
+#     "enabled": true
+#   }
+# ]

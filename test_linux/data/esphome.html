@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESPHome Devices - Sentinel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        h1 {
+            color: #333;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .status-connected { background: #4caf50; }
+        .status-disconnected { background: #f44336; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span class="status-indicator status-connected"></span>
+                ESPHome Devices
+            </h1>
+            <div>
+                <button onclick="refreshDevices()">Refresh</button>
+                <button onclick="addDevice()">Add Device</button>
+            </div>
+        </header>
+
+        <div id="devices-container">
+            <p>ESPHome device management interface loading...</p>
+        </div>
+    </div>
+
+    <script>
+        function refreshDevices() {
+            fetch('/api/esphome/devices')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('devices-container');
+                    if (data.devices && data.devices.length > 0) {
+                        let html = '<h2>Configured Devices</h2>';
+                        data.devices.forEach(device => {
+                            html += `
+                                <div class="device-card">
+                                    <h3>${device.friendly_name}</h3>
+                                    <p>${device.hostname}:${device.port}</p>
+                                    <p>Status: ${device.enabled ? 'Enabled' : 'Disabled'}</p>
+                                </div>
+                            `;
+                        });
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = '<p>No ESPHome devices configured</p>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('devices-container').innerHTML =
+                        '<p>Error loading ESPHome devices</p>';
+                });
+        }
+
+        function addDevice() {
+            const hostname = prompt('ESPHome device hostname:');
+            if (hostname) {
+                fetch('/api/esphome/device/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hostname: hostname,
+                        port: 6053,
+                        friendly_name: hostname,
+                        password: '',
+                        encryption_key: '',
+                        enabled: true
+                    })
+                })
+                .then(() => refreshDevices())
+                .catch(error => alert('Error adding device'));
+            }
+        }
+
+        // Load devices on page load
+        refreshDevices();
+    </script>
+</body>
+</html>

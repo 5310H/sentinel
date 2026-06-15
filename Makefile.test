@@ -1,0 +1,31 @@
+# Test server Makefile for Linux
+CC=gcc
+CFLAGS=-Wall -Wextra -g -I. -Icomponents/esphome_api -Icomponents/storage -Inanopb -Igenerated_proto -Iesphome-proto
+LDFLAGS=-lsodium -lpthread
+
+SRCS=test_server.c \
+     test_client.c \
+     components/esphome_api/esphome_api_client.c \
+     components/esphome_api/esphome_api_protocol.c \
+     components/esphome_api/esphome_api_server.c \
+     generated_proto/api.pb.c \
+     nanopb/pb_encode.c \
+     nanopb/pb_decode.c \
+     nanopb/pb_common.c
+
+test_server: test_server.c components/esphome_api/esphome_api_protocol.o components/esphome_api/esphome_api_server.o generated_proto/api.pb.o nanopb/pb_encode.o nanopb/pb_decode.o nanopb/pb_common.o
+	$(CC) $^ $(LDFLAGS) -o test_server
+
+test_noise: test_noise.c components/esphome_api/esphome_api_protocol.o generated_proto/api.pb.o nanopb/pb_encode.o nanopb/pb_decode.o nanopb/pb_common.o
+	$(CC) $^ $(LDFLAGS) -o test_noise
+
+components/storage/storage_mgr.o: components/storage/storage_mgr.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) test_server
+
+.PHONY: clean

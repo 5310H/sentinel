@@ -1,0 +1,90 @@
+{
+  "config": {
+    "AccountID": "SENTINEL-001",
+    "PIN": 1234,
+    "name": "K. Gerhart",
+    "Address1": "123 Security Lane",
+    "Address2": "",
+    "City": "Linux City",
+    "State": "CA",
+    "ZipCode": "90210",
+    "Email": "test@test.com",
+    "Phone": "555-0199",
+    "Instructions": "None",
+    "Latitude": 0,
+    "Longitude": 0,
+    "Accuracy": 0,
+    "MonitorServiceID": "",
+    "MonitorServiceKey": "",
+    "MonitoringURL": "",
+    "Notify": "none",
+    "MonitorFire": false,
+    "MonitorPolice": false,
+    "MonitorMedical": false,
+    "MonitorOther": false,
+    "SMTPServer": "smtp.mock.com",
+    "SMTPPort": 587,
+    "SMTPUser": "",
+    "SMTPPass": "",
+    "MQTTServer": "",
+    "MQTTPort": 1883,
+    "MQTTUser": "",
+    "MQTTPass": "",
+    "TelegramID": "",
+    "TelegramToken": "",
+    "TelegramEnabled": false,
+    "NVRServerURL": "",
+    "HAIntegrationURL": "",
+    "EntryDelay": 30,
+    "ExitDelay": 60,
+    "CancelDelay": 10
+  },
+  "users": [
+    [
+      {
+        "id": 1,
+        "name": "Admin",
+        "PIN": "1234",
+        "Phone": "555-0100",
+        "Email": "admin@example.com",
+        "Notify": "email",
+        "IsAdmin": true
+      }
+    ]
+  ],
+  "zones": [
+    [
+      {
+        "id": 1,
+        "name": "Front Door",
+        "Description": "Main Entrance",
+        "type": "police",
+        "Location": "Entryway",
+        "Model": "Generic",
+        "Manufacturer": "Sentinel",
+        "Chime": true,
+        "AlarmOnArmedOnly": true,
+        "PinNumber": 4,
+        "IsI2C": false,
+        "I2CAddress": 0,
+        "IsPerimeter": true,
+        "IsInterior": false,
+        "IsPanic": false
+      }
+    ]
+  ],
+  "relays": [
+    [
+      {
+        "id": 1,
+        "name": "Siren",
+        "Description": "External Siren",
+        "DurationSec": 60,
+        "Location": "Eave",
+        "type": "siren",
+        "Repeat": false,
+        "PinNumber": 17
+      }
+    ]
+  ]
+}

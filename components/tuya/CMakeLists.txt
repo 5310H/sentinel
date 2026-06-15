@@ -1,0 +1,15 @@
+idf_component_register(
+    SRCS 
+        "tuya_protocol.c"
+        "tuya_devices.c"
+        "tuya_mgr.c"
+        "tuya_zones.c"
+        "tuya_relays.c"
+    INCLUDE_DIRS 
+        "."
+    REQUIRES 
+        esp_driver_uart
+        esp_timer
+        engine
+        storage
+)

@@ -1,0 +1,18 @@
+[
+  {
+    "hostname": "sp28.local",
+    "port": 6053,
+    "friendly_name": "Smart Plug 28",
+    "description": "Test Plugin kitvhen",
+    "location": "Kitchen",
+    "password": "49trahreg48",
+    "encryption_key": "93lQ8xeyF152/qDFEOngsSIJ74BrNRJOvXPVs8yNOIQ=",
+    "virtual_zone_start": 33,
+    "virtual_relay_start": 9,
+    "relay": {
+      "id": 9,
+      "entity_key": 1
+    },
+    "enabled": true
+  }
+]

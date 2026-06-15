@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Diagnostics</title>
+    <style>
+        :root { --bg: #1a1a1a; --panel: #2a2a2a; --accent: #007bff; --ok: #28a745; --warn: #ffc107; --alert: #dc3545; }
+        body { font-family: monospace; background: var(--bg); color: white; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; background: var(--panel); padding: 20px; border-radius: 16px; border: 1px solid #444; }
+        
+        h2 { margin-top: 0; color: var(--accent); border-bottom: 2px solid #444; padding-bottom: 10px; }
+        
+        .section { margin: 20px 0; }
+        .section-title { font-weight: bold; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; font-size: 12px; }
+        
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; font-size: 13px; }
+        .stat-label { color: #999; }
+        .stat-value { font-weight: bold; }
+        .stat-ok { color: var(--ok); }
+        .stat-warn { color: var(--warn); }
+        .stat-alert { color: var(--alert); }
+        
+        .event-list { background: #333; padding: 12px; border-radius: 8px; max-height: 300px; overflow-y: auto; font-size: 12px; }
+        .event-item { padding: 4px 0; border-bottom: 1px solid #444; }
+        .event-item:last-child { border-bottom: none; }
+        
+        .button-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-refresh { background: var(--accent); color: white; }
+        .btn-clear { background: var(--warn); color: black; }
+        .btn-back { background: #444; color: white; }
+        
+        .auto-refresh { margin-top: 15px; padding: 10px; background: #333; border-radius: 8px; text-align: center; font-size: 12px; }
+        .auto-refresh input { margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🔧 System Diagnostics</h2>
+        
+        <div class="section">
+            <div class="section-title">System Status</div>
+            <div class="stat-row">
+                <span class="stat-label">Temperature:</span>
+                <span class="stat-value" id="temp-stat">--°C</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Uptime:</span>
+                <span class="stat-value" id="uptime-stat">--s</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">RTC Synced:</span>
+                <span class="stat-value" id="rtc-stat">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">RTC Battery:</span>
+                <span class="stat-value" id="rtc-batt-stat">--</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Sensors & Alarms</div>
+            <div class="stat-row">
+                <span class="stat-label">Tamper Detected:</span>
+                <span class="stat-value" id="tamper-stat">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Power Loss Detected:</span>
+                <span class="stat-value" id="power-stat">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">On Backup Power:</span>
+                <span class="stat-value" id="backup-stat">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Backup Duration:</span>
+                <span class="stat-value" id="duration-stat">--</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Event History</div>
+            <div class="stat-row">
+                <span class="stat-label">Total Events:</span>
+                <span class="stat-value" id="event-count-stat">0</span>
+            </div>
+            <div class="event-list" id="event-list">
+                <div class="event-item" style="color:#888;">No events</div>
+            </div>
+        </div>
+        
+        <div class="auto-refresh">
+            <input type="checkbox" id="auto-refresh-check" checked>
+            <label for="auto-refresh-check">Auto-refresh every 5 seconds</label>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn btn-refresh" onclick="refreshDiagnostics()">🔄 Refresh</button>
+            <button class="btn btn-clear" onclick="clearEvents()">🗑️ Clear Events</button>
+            <a href="index.html" class="btn btn-back" style="text-decoration:none; display:flex; align-items:center; justify-content:center;">⬅️ Back</a>
+        </div>
+    </div>
+
+    <script>
+        const EVENT_TYPES = {
+            0x01: "System Start",
+            0x02: "Armed",
+            0x03: "Disarmed",
+            0x04: "Zone Trigger",
+            0x05: "Tamper Alert",
+            0x06: "Power Loss",
+            0x07: "Power Restore",
+            0x08: "Temp Alert",
+            0x09: "Network Lost",
+            0x0A: "Network Found",
+            0x0B: "Auth Failed",
+            0x0C: "Alert Sent",
+        };
+
+        async function refreshDiagnostics() {
+            try {
+                const res = await fetch('/diagnostics');
+                const data = await res.json();
+                
+                // Update system stats
+                const tempF = Math.round((data.temperature_c * 9 / 5) + 32);
+                document.getElementById('temp-stat').innerText = tempF + '°F';
+                document.getElementById('temp-stat').className = 'stat-value ' + 
+                    (tempF > 113 ? 'stat-alert' : (tempF > 104 ? 'stat-warn' : 'stat-ok'));
+                
+                document.getElementById('uptime-stat').innerText = Math.floor(data.uptime_seconds / 60) + 'm';
+                document.getElementById('rtc-stat').innerText = data.rtc_synchronized ? '✓ Yes' : '✗ No';
+                document.getElementById('rtc-stat').className = 'stat-value ' + (data.rtc_synchronized ? 'stat-ok' : 'stat-warn');
+                document.getElementById('rtc-batt-stat').innerText = data.rtc_battery_ok ? '✓ OK' : '✗ Low';
+                document.getElementById('rtc-batt-stat').className = 'stat-value ' + (data.rtc_battery_ok ? 'stat-ok' : 'stat-alert');
+                
+                // Sensor status
+                document.getElementById('tamper-stat').innerText = data.tamper_detected ? '⚠️ YES' : '✓ NO';
+                document.getElementById('tamper-stat').className = 'stat-value ' + (data.tamper_detected ? 'stat-alert' : 'stat-ok');
+                
+                document.getElementById('power-stat').innerText = data.power_loss_detected ? '⚠️ YES' : '✓ NO';
+                document.getElementById('power-stat').className = 'stat-value ' + (data.power_loss_detected ? 'stat-alert' : 'stat-ok');
+                
+                document.getElementById('backup-stat').innerText = data.on_backup_power ? '🔋 YES' : '✓ NO';
+                document.getElementById('backup-stat').className = 'stat-value ' + (data.on_backup_power ? 'stat-warn' : 'stat-ok');
+                
+                const mins = Math.floor(data.backup_power_duration_ms / 60000);
+                const secs = Math.floor((data.backup_power_duration_ms % 60000) / 1000);
+                document.getElementById('duration-stat').innerText = mins + 'm ' + secs + 's';
+                
+                // Fetch events
+                const evRes = await fetch('/events');
+                const events = await evRes.json();
+                
+                document.getElementById('event-count-stat').innerText = events.length;
+                
+                if(events.length === 0) {
+                    document.getElementById('event-list').innerHTML = '<div class="event-item" style="color:#888;">No events</div>';
+                } else {
+                    document.getElementById('event-list').innerHTML = events.map(e => {
+                        const date = new Date(e.timestamp * 1000);
+                        const time = date.toLocaleTimeString();
+                        const type = EVENT_TYPES[e.event_type] || 'Unknown';
+                        return `<div class="event-item">${time} - ${type}${e.zone_id ? ' (Zone ' + e.zone_id + ')' : ''}</div>`;
+                    }).join('');
+                }
+            } catch(e) {
+                console.error("Failed to fetch diagnostics:", e);
+                document.getElementById('event-list').innerHTML = '<div class="event-item" style="color:#dc3545;">Error loading data</div>';
+            }
+        }
+
+        async function clearEvents() {
+            if(!confirm('Clear all events from history?')) return;
+            try {
+                await fetch('/api/clear-events', { method: 'POST' });
+                refreshDiagnostics();
+            } catch(e) {
+                console.error("Failed to clear events:", e);
+            }
+        }
+
+        // Initial load
+        refreshDiagnostics();
+
+        // Auto-refresh
+        let autoRefreshInterval = null;
+        function setupAutoRefresh() {
+            if(document.getElementById('auto-refresh-check').checked) {
+                if(!autoRefreshInterval) {
+                    autoRefreshInterval = setInterval(refreshDiagnostics, 5000);
+                }
+            } else {
+                if(autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+        document.getElementById('auto-refresh-check').addEventListener('change', setupAutoRefresh);
+        setupAutoRefresh();
+    </script>
+</body>
+</html>

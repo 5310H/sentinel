@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel | Fix</title>
+    <style>
+        :root { --bg: #000; --panel: #111; --accent: #0f0; --warn: #ffc107; --danger: #ff4d4f; --blue: #00d4ff; }
+        body { font-family: sans-serif; background: var(--bg); color: #eee; margin: 0; padding: 10px; }
+        .container { display: flex; flex-direction: column; gap: 10px; max-width: 500px; margin: 0 auto; }
+        .section { background: var(--panel); border: 1px solid #222; border-radius: 8px; padding: 12px; }
+        
+        .status-header { display:flex; justify-content:space-between; font-family:monospace; font-size:12px; margin-bottom:10px; }
+        .display { background: #000; color: var(--accent); border: 1px solid #333; padding: 12px; text-align: center; font-size: 24px; margin-bottom: 8px; border-radius: 4px; font-family: monospace; }
+        
+        .key-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .key { background: #1a1a1b; padding: 18px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 20px; border: 1px solid #333; }
+        
+        input, select { background: #000; color: #fff; border: 1px solid #444; padding: 12px; width: 100%; margin-bottom: 6px; box-sizing: border-box; font-size: 16px; }
+        .btn { padding: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; width: 100%; }
+        .b-a { background: var(--accent); color: #000; } .b-s { background: #222; color: #fff; } 
+        .b-w { background: var(--warn); color: #000; } .b-d { background: var(--danger); color: #fff; }
+
+        .user-card { background: #000; border: 1px solid #333; border-left: 4px solid var(--accent); padding: 10px; margin-bottom: 8px; }
+        #debug-log { font-size: 9px; color: #666; font-family: monospace; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="section">
+        <div class="status-header">
+            <span style="color:var(--blue)">RF: <span id="rf-txt">------</span></span>
+            <span id="db-status" style="color:#444">DB: IDLE</span>
+        </div>
+        <div id="disp" class="display">----</div>
+        <div id="keys" class="key-grid"></div>
+        <button class="btn b-d" style="margin-top:10px;" onclick="act('/api/disarm',{})">DISARM</button>
+    </div>
+
+    <div class="section">
+        <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--accent)">USER DATABASE</h4>
+        <div id="u-form">
+            <input type="text" id="u-nm" placeholder="Name">
+            <input type="password" id="u-pn" placeholder="PIN" maxlength="4">
+            <input type="email" id="u-em" placeholder="Email">
+            <select id="u-nt"><option value="1">Lvl 1</option><option value="2">Lvl 2</option><option value="3">Lvl 3</option></select>
+            <button id="u-sub" class="btn b-a" onclick="saveU()">COMMIT</button>
+            <button id="u-can" class="btn b-s" style="margin-top:5px; display:none;" onclick="resetU()">CANCEL</button>
+        </div>
+        
+        <div id="u-list" style="margin-top:15px; border-top:1px solid #222; padding-top:10px;">
+            <p style="text-align:center; color:#444;">Loading users...</p>
+        </div>
+        <div id="debug-log"></div>
+    </div>
+</div>
+
+<script>
+    let kPin = "";
+    const dbStatus = document.getElementById('db-status');
+    const debug = (m) => { document.getElementById('debug-log').innerText = m; };
+
+    // Standard Action
+    async function act(url, body) {
+        if(url.includes('disarm')) body.pin = kPin;
+        try {
+            await fetch(url, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body) 
+            });
+        } catch(e) { debug("ACT ERR: " + e.message); }
+    }
+
+    // Keypad Initialization
+    "123456789C0K".split('').forEach(k => {
+        const b = document.createElement('div'); b.className='key'; b.innerText=k;
+        b.onclick=()=>{
+            if(k==='C'){ kPin=""; disp.innerText="----"; }
+            else if(k==='K'){ act('/api/auth',{pin:kPin}); }
+            else if(kPin.length<4){ kPin+=k; disp.innerText="*".repeat(kPin.length); }
+        };
+        keys.appendChild(b);
+    });
+
+    // --- FULL CRUD ---
+
+    async function loadU() {
+        dbStatus.innerText = "DB: SYNCING...";
+        try {
+            const r = await fetch('/api/users?t=' + Date.now());
+            if(!r.ok) throw new Error("Server Response: " + r.status);
+            const users = await r.json();
+            
+            dbStatus.innerText = "DB: OK";
+            dbStatus.style.color = "var(--accent)";
+            
+            if(!users.length) {
+                document.getElementById('u-list').innerHTML = '<p style="text-align:center;color:#666">No users.</p>';
+                return;
+            }
+
+            document.getElementById('u-list').innerHTML = users.map(u => `
+                <div class="user-card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <b>${u.name}</b> <span>L${u.notify}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                        <button class="btn b-w" style="padding:8px" onclick="editU('${u.name}','${u.email}',${u.notify})">EDIT</button>
+                        <button class="btn b-d" style="padding:8px" onclick="delU('${u.name}')">DEL</button>
+                    </div>
+                </div>`).join('');
+        } catch(e) {
+            dbStatus.innerText = "DB: ERR";
+            dbStatus.style.color = "var(--danger)";
+            document.getElementById('u-list').innerHTML = '<p style="text-align:center;color:red">CONNECTION ERROR</p>';
+            debug(e.message);
+        }
+    }
+
+    async function saveU() {
+        const isUpd = document.getElementById('u-sub').innerText === "SAVE";
+        const p = { 
+            name: document.getElementById('u-nm').value, 
+            pin: document.getElementById('u-pn').value, 
+            email: document.getElementById('u-em').value, 
+            notify: parseInt(document.getElementById('u-nt').value) 
+        };
+        if(!p.name) return;
+
+        try {
+            await fetch(isUpd ? '/api/users/update' : '/api/users/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(p)
+            });
+            resetU(); loadU();
+        } catch(e) { debug("SAVE ERR: " + e.message); }
+    }
+
+    function editU(n, e, v) {
+        document.getElementById('u-nm').value = n; document.getElementById('u-nm').disabled = true;
+        document.getElementById('u-em').value = e; document.getElementById('u-nt').value = v;
+        document.getElementById('u-sub').innerText = "SAVE";
+        document.getElementById('u-sub').className = "btn b-w";
+        document.getElementById('u-can').style.display = "block";
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function resetU() {
+        document.getElementById('u-nm').disabled = false;
+        document.getElementById('u-nm').value = document.getElementById('u-pn').value = document.getElementById('u-em').value = "";
+        document.getElementById('u-sub').innerText = "COMMIT";
+        document.getElementById('u-sub').className = "btn b-a";
+        document.getElementById('u-can').style.display = "none";
+    }
+
+    async function delU(name) {
+        if(confirm("Delete " + name + "?")) {
+            await fetch('/api/users/delete', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({name}) 
+            });
+            loadU();
+        }
+    }
+
+    // Hardware Status Loop
+    setInterval(async () => {
+        try {
+            const r = await fetch('/api/status?t=' + Date.now());
+            const data = await r.json();
+            if(data.last_rf) document.getElementById('rf-txt').innerText = data.last_rf;
+        } catch(e) {}
+    }, 4000);
+
+    loadU();
+</script>
+</body>
+</html>

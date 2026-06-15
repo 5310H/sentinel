@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel - System Audit</title>
+    <script>
+        if (!sessionStorage.getItem('sentinel_token')) {
+            window.location.replace("index.html");
+        }
+    </script>
+    <style>
+        :root { 
+            --bg: #0a0a0a; 
+            --panel: #1a1a1a; 
+            --accent: #00ff00;
+            --border: #333;
+            --text: #eee;
+            --dim: #666;
+        }
+        
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Courier New', monospace; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 10px; 
+            min-height: 100vh;
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 2rem auto; 
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 6px solid #333;
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            grid-column: 1 / -1;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+
+        .nav-link {
+            display: block;
+            text-align: center;
+            color: var(--dim);
+            text-decoration: none;
+            font-size: 11px;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        .nav-link:hover { color: white; }
+
+        /* Cards */
+        .card { 
+            background: #111; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            overflow: hidden; 
+        }
+        .card-header { 
+            background-color: #1a1a1a; 
+            padding: 10px 12px; 
+            border-bottom: 1px solid var(--border); 
+            font-weight: bold; 
+            color: var(--accent); 
+            font-size: 13px;
+            text-transform: uppercase;
+            display: flex; justify-content: space-between; align-items: center;
+            letter-spacing: 1px;
+        }
+        .card-body { padding: 0; }
+
+        /* Key-Value Rows */
+        .kv-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 8px 12px; 
+            border-bottom: 1px solid #222; 
+            font-size: 11px; 
+            align-items: center;
+        }
+        .kv-row:last-child { border-bottom: none; }
+        .kv-row:hover { background-color: #151515; }
+        .kv-key { color: #888; text-transform: uppercase; }
+        .kv-val { color: #fff; text-align: right; word-break: break-all; max-width: 60%; }
+
+        /* Sub-sections for Arrays */
+        .sub-header { 
+            background: #222; 
+            padding: 6px 12px; 
+            font-size: 10px; 
+            font-weight: bold; 
+            color: #aaa; 
+            border-top: 1px solid var(--border); 
+            border-bottom: 1px solid var(--border); 
+            text-transform: uppercase;
+        }
+
+        /* Utilities */
+        .btn { 
+            background: #333; color: white; border: 1px solid #444; 
+            padding: 4px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; 
+            font-family: inherit; text-transform: uppercase;
+        }
+        .btn:hover { background: #444; border-color: #666; }
+        
+        .badge { padding: 2px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; display: inline-block; }
+        .badge-true { background-color: #1e3a1e; color: #0f0; border: 1px solid #0f0; }
+        .badge-false { background-color: #3a1e1e; color: #f00; border: 1px solid #f00; }
+        .badge-null { color: #555; font-style: italic; }
+        
+        .error-msg { color: #f00; padding: 10px; text-align: center; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <p class="panel-title">SYSTEM AUDIT</p>
+            <a href="index.html" class="nav-link">&larr; BACK TO DASHBOARD</a>
+        </div>
+
+        <!-- System Configuration -->
+        <div class="card">
+            <div class="card-header">
+                System Config
+                <button class="btn" onclick="loadData()">Refresh</button>
+            </div>
+            <div class="card-body" id="config-dump">Loading...</div>
+        </div>
+
+        <!-- Zones -->
+        <div class="card">
+            <div class="card-header">Zones (Inputs)</div>
+            <div class="card-body" id="zones-dump">Loading...</div>
+        </div>
+
+        <!-- Relays -->
+        <div class="card">
+            <div class="card-header">Relays (Outputs)</div>
+            <div class="card-body" id="relays-dump">Loading...</div>
+        </div>
+
+        <!-- Network Configuration -->
+        <div class="card">
+            <div class="card-header">Network Config</div>
+            <div class="card-body" id="network-dump">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        function formatValue(val) {
+            if (val === true || val === "true") return '<span class="badge badge-true">TRUE</span>';
+            if (val === false || val === "false") return '<span class="badge badge-false">FALSE</span>';
+            if (val === null || val === undefined) return '<span class="badge badge-null">NULL</span>';
+            return val;
+        }
+
+        function renderObject(obj, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (!obj || Object.keys(obj).length === 0) {
+                container.innerHTML = '<div class="kv-row" style="justify-content:center; color:#555;">No Data</div>';
+                return;
+            }
+
+            let html = '';
+            for (const [key, value] of Object.entries(obj)) {
+                html += `<div class="kv-row">
+                    <span class="kv-key">${key}</span>
+                    <span class="kv-val">${formatValue(value)}</span>
+                </div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderArray(arr, containerId, labelPrefix) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            if (!arr || arr.length === 0) {
+                container.innerHTML = '<div class="kv-row" style="justify-content:center; color:#555;">Empty Array</div>';
+                return;
+            }
+
+            let html = '';
+            arr.forEach((item, index) => {
+                html += `<div class="sub-header">${labelPrefix} #${index}</div>`;
+                for (const [key, value] of Object.entries(item)) {
+                    html += `<div class="kv-row">
+                        <span class="kv-key">${key}</span>
+                        <span class="kv-val">${formatValue(value)}</span>
+                    </div>`;
+                }
+            });
+            container.innerHTML = html;
+        }
+
+        function loadData() {
+            fetch('/api/status?t=' + Date.now())
+                .then(response => {
+                    if (!response.ok) throw new Error("HTTP " + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    // Render safely to prevent one error blocking others
+                    try { renderObject(data.config, 'config-dump'); } catch(e) { console.error(e); }
+                    try { renderObject(data.network, 'network-dump'); } catch(e) { console.error(e); }
+                    try { renderArray(data.zones, 'zones-dump', 'Zone'); } catch(e) { console.error(e); }
+                    try { renderArray(data.relays, 'relays-dump', 'Relay'); } catch(e) { console.error(e); }
+                })
+                .catch(err => {
+                    console.error('Audit Error:', err);
+                    const msg = `<div class="error-msg">Failed to load data: ${err.message}</div>`;
+                    document.getElementById('network-dump').innerHTML = msg;
+                    document.getElementById('config-dump').innerHTML = msg;
+                    document.getElementById('zones-dump').innerHTML = msg;
+                    document.getElementById('relays-dump').innerHTML = msg;
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

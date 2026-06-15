@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel | DSC Maintenance</title>
+    <style>
+        :root {
+            --lcd-bg: #859c99; --lcd-text: #222;
+            --keypad-bg: #d9dcdf; --btn-bg: #252525; --btn-text: #03a9f4;
+            --danger: #ff4d4f; --success: #52c41a; --warning: #faad14;
+            --panel-bg: #141415;
+        }
+        body { font-family: "Arial", sans-serif; background: #0a0a0b; color: #eee; padding: 20px; }
+        .dsc-shell { 
+            max-width: 400px; margin: 0 auto; background: var(--panel-bg); 
+            padding: 15px; border-radius: 15px; border: 2px solid #333;
+        }
+
+        /* Virtual LCD Styling */
+        .lcd-screen {
+            background: var(--lcd-bg); color: var(--lcd-text);
+            padding: 15px; border-radius: 8px; border: 3px solid #555;
+            font-family: monospace; font-size: 1.1rem; min-height: 60px;
+            display: flex; flex-direction: column; justify-content: center;
+            text-shadow: 1px 1px 0px rgba(255,255,255,0.2); margin-bottom: 10px;
+        }
+        .lcd-line { height: 1.2rem; white-space: pre; }
+
+        /* Icon Bar */
+        .status-icons {
+            display: flex; justify-content: space-around; background: #222;
+            padding: 8px; border-radius: 5px; margin-bottom: 15px; font-size: 1.2rem;
+        }
+        .icon { opacity: 0.15; transition: 0.3s; }
+        .icon.active-ready { color: var(--success); opacity: 1; }
+        .icon.active-armed { color: var(--danger); opacity: 1; }
+        .icon.active-trouble { color: var(--warning); opacity: 1; }
+        .icon.active-ac { color: var(--success); opacity: 1; }
+
+        /* Button Layout */
+        .button-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .key {
+            background: var(--btn-bg); color: var(--btn-text); border: 1px solid #444;
+            padding: 12px; border-radius: 8px; text-align: center; cursor: pointer;
+            font-weight: bold; position: relative;
+        }
+        .key:active { background: #444; transform: translateY(2px); }
+        .key-label { display: block; font-size: 0.9rem; }
+        .key-sub { font-size: 0.5rem; opacity: 0.7; font-style: italic; }
+
+        .side-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px; }
+        .small-btn { font-size: 0.7rem; padding: 5px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; }
+
+        pre { background: #000; color: #0f0; font-size: 10px; padding: 10px; border-radius: 5px; margin-top: 20px; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+<div class="dsc-shell">
+    <div style="font-size: 0.7rem; margin-bottom: 8px; color: #666;">Semtinel Alarm Series</div>
+    
+    <div class="lcd-screen">
+        <div id="l1" class="lcd-line">CONNECTING...</div>
+        <div id="l2" class="lcd-line"></div>
+    </div>
+
+    <div class="status-icons">
+        <span id="ico-ready" class="icon" title="Ready">✔</span>
+        <span id="ico-armed" class="icon" title="Armed">✖</span>
+        <span id="ico-trouble" class="icon" title="Trouble">⚠</span>
+        <span id="ico-ac" class="icon" title="AC Power">⚡</span>
+    </div>
+
+    <div class="side-btns">
+        <button class="small-btn" onclick="send('<')">&lt; PREV</button>
+        <button class="small-btn" onclick="send('>')">NEXT &gt;</button>
+    </div>
+
+    <div class="button-grid">
+        <div class="key" onclick="send('1')"><span class="key-label">1</span><span class="key-sub">BYPASS</span></div>
+        <div class="key" onclick="send('2')"><span class="key-label">2</span><span class="key-sub">SERV</span></div>
+        <div class="key" onclick="send('3')"><span class="key-label">3</span><span class="key-sub">ALARMS</span></div>
+        <div class="key" onclick="send('4')"><span class="key-label">4</span><span class="key-sub">CHIME</span></div>
+        <div class="key" onclick="send('5')"><span class="key-label">5</span><span class="key-sub">CODES</span></div>
+        <div class="key" onclick="send('6')"><span class="key-label">6</span><span class="key-sub">FUNC</span></div>
+        <div class="key" onclick="send('7')"><span class="key-label">7</span><span class="key-sub">OUTP</span></div>
+        <div class="key" onclick="send('8')"><span class="key-label">8</span><span class="key-sub">PROG</span></div>
+        <div class="key" onclick="send('9')"><span class="key-label">9</span><span class="key-sub">NIGHT</span></div>
+        <div class="key" onclick="send('*')"><span class="key-label">*</span><span class="key-sub">SELECT</span></div>
+        <div class="key" onclick="send('0')"><span class="key-label">0</span><span class="key-sub"></span></div>
+        <div class="key" onclick="send('#')"><span class="key-label">#</span><span class="key-sub">ENTER</span></div>
+    </div>
+
+    <pre id="debug">Waiting for JSON status...</pre>
+</div>
+
+<script>
+    async function send(key) {
+        // Logic to simulate keypress to your C backend
+        console.log("Key Pressed:", key);
+        await fetch(`/api/keypress?key=${encodeURIComponent(key)}`);
+        update();
+    }
+
+    async function update() {
+        try {
+            const res = await fetch('/api/status?t=' + Date.now());
+            const data = await res.json();
+            document.getElementById('debug').innerText = JSON.stringify(data, null, 2);
+
+            // 1. Update LCD Lines
+            const state = data.config.state; // 0: Disarmed, 4: Alarmed, etc.
+            const states = ["SYSTEM READY", "EXIT DELAY", "SYSTEM ARMED", "ENTRY DELAY", "!! ALARM !!"];
+            
+            document.getElementById('l1').innerText = states[state] || "SENTINEL ON";
+            document.getElementById('l2').innerText = data.config.violation || "Zones Secure";
+
+            // 2. Update Status Icons (Map to your C Boolean logic)
+            toggleIcon('ico-ready', data.config.ready);
+            toggleIcon('ico-armed', state >= 2); // Armed, Entry, or Alarm
+            toggleIcon('ico-trouble', data.config.trouble || false);
+            toggleIcon('ico-ac', true); // Assuming AC is always on for mock
+
+        } catch (e) {
+            document.getElementById('l1').innerText = "COMM ERROR";
+            document.getElementById('l2').innerText = "SERVER OFFLINE";
+        }
+    }
+
+    function toggleIcon(id, active) {
+        const el = document.getElementById(id);
+        const type = id.replace('ico-', '');
+        active ? el.classList.add('active-' + type) : el.classList.remove('active-' + type);
+    }
+
+    setInterval(update, 2000);
+    update();
+</script>
+
+</body>
+</html>

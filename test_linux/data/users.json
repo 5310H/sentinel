@@ -1,0 +1,33 @@
+[{
+		"name":	"Installer",
+		"phone":	"555-0000",
+		"email":	"5310@trahreg.com",
+		"notify":	0,
+		"is_admin":	true,
+		"requires_2fa":	false
+	}, {
+		"name":	"kelvin",
+		"emergency_pin":	"66969",
+		"phone":	"555-1234",
+		"email":	"5310@trahreg.com",
+		"notify":	0,
+		"is_admin":	true,
+		"requires_2fa":	false
+	}, {
+		"name":	"Installer",
+		"pin_hash":	"fe75e3d09608cc467464945c8f939a1af01b0f34951451baa1a9798ebe8d298e70b1f83e2f6754e7847684fdc7b76c2bff5d9462e092d730e5a4fe14756771d400002710",
+		"emergency_pin":	"6969",
+		"phone":	"",
+		"email":	"5310@trahreg.com",
+		"notify":	0,
+		"is_admin":	false,
+		"requires_2fa":	false
+	}, {
+		"name":	"Installer",
+		"pin_hash":	"f95a95fe1c8a1ab2468af9d0a418ebfd011a775f91cf8b0f7f2a328bf4cfb4eec1c29159a0b1caa3afa8f204d95c94f017910d83244eea2d8f90271a5a29eb8e00002710",
+		"phone":	"",
+		"email":	"5310@trahreg.com",
+		"notify":	0,
+		"is_admin":	false,
+		"requires_2fa":	false
+	}]

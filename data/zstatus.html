@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel Zone Status</title>
+    <script>
+        if (!sessionStorage.getItem('sentinel_token')) {
+            window.location.replace("index.html");
+        }
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        :root { 
+            --bg: #0a0a0a; 
+            --panel: #1a1a1a; 
+            --display: #001100;
+            --ready: #28a745; 
+            --not: #ffc107; 
+            --armed: #dc3545; 
+            --alarm: #ff0000;
+            --accent: #00ff00;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Courier New', monospace; 
+            background: var(--bg); 
+            color: white; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 8px;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        @media (max-width: 480px) {
+            body { padding: 4px; }
+        }
+        
+        .panel-container {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 8px solid #333;
+            border-radius: 20px;
+            box-shadow: 
+                0 0 30px rgba(0,0,0,0.8),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 480px) {
+            .panel-container {
+                border: 6px solid #333;
+                border-radius: 16px;
+                padding: 12px;
+                margin-top: 10px;
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin: 0 0 5px 0;
+        }
+        
+        .panel-subtitle {
+            font-size: 11px;
+            color: #666;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+        
+        .sync-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+            margin-left: 8px;
+            animation: pulse 1s infinite;
+        }
+        
+        .sync-status.connected {
+            background: var(--ready);
+            box-shadow: 0 0 8px var(--ready);
+        }
+        
+        .sync-status.error {
+            background: var(--armed);
+        }
+        
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .nav-link {
+            display: inline-block;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 6px 12px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:active { background: #333; }
+        
+        .zone-list { 
+            margin-top: 20px; 
+        }
+        
+        .zone-item {
+            background: #222;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .zone-item.secure {
+            border-left: 4px solid var(--ready);
+        }
+        
+        .zone-item.violated {
+            border-left: 4px solid var(--armed);
+            background: #3d2626;
+            box-shadow: 0 0 15px rgba(220,53,69,0.3);
+        }
+        
+        .zone-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+       
+        .zone-location {
+            font-size: 12px;
+            font-weight: bold;
+            color:gold
+        }
+        
+        .zone-number {
+            font-size: 16px;
+            margin-top: 4px;
+            color: var(--accent);
+        }
+        
+        .zone-state {
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: #333;
+        }
+        
+        .zone-state.secure {
+            color: var(--ready);
+            border: 1px solid var(--ready);
+        }
+        
+        .zone-state.violated {
+            color: var(--armed);
+            border: 1px solid var(--armed);
+            animation: blink 0.5s infinite;
+        }
+        
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.5; } }
+        
+        .loading {
+            text-align: center;
+            padding: 40px 15px;
+            color: #666;
+            font-size: 13px;
+        }
+        
+        /* Audit Log Styles */
+        .audit-log-section {
+            margin-top: 30px;
+        }
+        
+        .audit-log-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #333;
+        }
+        
+        .audit-log-window {
+            background: var(--display);
+            border: 2px solid #1a4d1a;
+            border-radius: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .audit-entry {
+            color: #00ff00;
+            margin-bottom: 6px;
+            padding: 4px;
+            border-left: 2px solid #1a4d1a;
+            padding-left: 8px;
+        }
+        
+        .audit-entry.failed {
+            color: #ff4444;
+            border-left-color: #8b0000;
+        }
+        
+        .audit-entry.warning {
+            color: #ffaa00;
+            border-left-color: #664400;
+        }
+        
+        .audit-timestamp {
+            color: #888;
+            font-size: 10px;
+        }
+        
+        .audit-action {
+            color: var(--accent);
+            font-weight: bold;
+        }
+        
+        .btn-back {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+        
+        .btn-back:active {
+            box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+            transform: translateY(2px);
+        }
+        
+        @media (max-width: 480px) {
+            .btn-back {
+                padding: 12px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <!-- Header -->
+        <div class="header">
+            <p class="panel-title">
+                ZONE STATUS
+                <span class="sync-status" id="sync-icon"></span>
+            </p>
+            <p class="panel-subtitle">Sensor Monitor</p>
+            <a href="index.html" class="nav-link">← Back to Panel</a>
+        </div>
+        
+        <!-- Zone List -->
+        <div id="zone-list" class="zone-list">
+            <div class="loading">Fetching sensor data...</div>
+        </div>
+        
+        <!-- Audit Log -->
+        <div class="audit-log-section">
+            <div class="audit-log-title">🔐 AUDIT LOG (Last 30 Events)</div>
+            <div class="audit-log-window" id="audit-log">
+                <div class="audit-entry">Loading audit log...</div>
+            </div>
+        </div>
+        
+        <a href="index.html" class="btn-back">Return to Panel</a>
+    </div>
+
+    <script>
+        async function fetchZones() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const zones = data.zones || [];
+                // Remove duplicates by id
+                const uniqueZones = zones.filter((zone, index, self) => self.findIndex(z => z.id === zone.id) === index);
+                renderZones(uniqueZones);
+                document.getElementById('sync-icon').className = 'sync-status connected';
+            } catch (e) {
+                document.getElementById('sync-icon').className = 'sync-status error';
+                console.error("Failed to fetch zones");
+            }
+        }
+
+        function renderZones(zones) {
+            const list = document.getElementById('zone-list');
+            
+            if(zones.length === 0) {
+                list.innerHTML = '<div class="loading">No zones configured</div>';
+                return;
+            }
+            
+            list.innerHTML = zones.map((zone) => `
+                <div class="zone-item ${zone.open ? 'violated' : 'secure'}">
+                    <div>
+                        <div class="zone-number">Zone ${zone.id}</div>
+                        <div class="zone-name">${zone.name}${zone.description ? ' - ' + zone.description : ''}</div>
+                        <div class="zone-location">${zone.location || 'N/A'}</div>
+                    </div>
+                    <div class="zone-state ${zone.open ? 'violated' : 'secure'}">
+                        ${zone.open ? 'OPEN' : 'SECURE'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        setInterval(fetchZones, 2000);
+        fetchZones();
+        
+        // Fetch and display audit log
+        async function fetchAuditLog() {
+            try {
+                const res = await fetch('/api/audit');
+                const auditData = await res.json();
+                renderAuditLog(auditData.entries || []);
+            } catch (e) {
+                console.error("Failed to fetch audit log");
+            }
+        }
+        
+        function renderAuditLog(entries) {
+            const logWindow = document.getElementById('audit-log');
+            
+            if(entries.length === 0) {
+                logWindow.innerHTML = '<div class="audit-entry">No audit entries</div>';
+                return;
+            }
+            
+            // Show last 30 entries in reverse order (newest first)
+            const displayEntries = entries.slice(-30).reverse();
+            
+            logWindow.innerHTML = displayEntries.map(entry => {
+                const timestamp = new Date(entry.timestamp * 1000).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                
+                let entryClass = 'audit-entry';
+                if(entry.success === false) entryClass += ' failed';
+                else if(entry.action.includes('WARN')) entryClass += ' warning';
+                
+                const user = entry.user ? entry.user : 'unknown';
+                const action = entry.action ? entry.action : 'N/A';
+                const endpoint = entry.endpoint ? `[${entry.endpoint}]` : '';
+                const details = entry.details ? `- ${entry.details}` : '';
+                
+                return `<div class="${entryClass}">
+                    <span class="audit-timestamp">${timestamp}</span> 
+                    <span class="audit-action">${action}</span> 
+                    by ${user} ${endpoint} ${details}
+                </div>`;
+            }).join('');
+            
+            // Auto-scroll to bottom
+            logWindow.scrollTop = logWindow.scrollHeight;
+        }
+        
+        // Fetch audit log on load and refresh every 3 seconds
+        fetchAuditLog();
+        setInterval(fetchAuditLog, 3000);
+    </script>
+</body>
+</html>

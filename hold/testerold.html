@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel | Maintenance</title>
+    <style>
+        :root { 
+            --bg: #0a0a0a; --panel: #1a1a1a; --display: #001100;
+            --ready: #28a745; --not: #ffc107; --armed: #dc3545; 
+            --accent: #00ff00; --relay-on: #00d4ff; --term-bg: #050505;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; background: var(--bg); color: white; margin: 0; padding: 10px; display: flex; justify-content: center; }
+        
+        .panel-container {
+            width: 100%; max-width: 480px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 6px solid #333; border-radius: 15px; padding: 20px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        /* RF SNIFFER HEADER */
+        .term-header {
+            background: #222; color: #00d4ff; padding: 6px 10px; font-size: 11px;
+            border-radius: 4px 4px 0 0; border: 1px solid #333; display: flex; justify-content: space-between;
+        }
+
+        /* PIN & KEYPAD */
+        .pin-display {
+            background: var(--display); border: 2px solid #1a4d1a; padding: 15px; margin-bottom: 12px;
+            text-align: center; font-size: 32px; letter-spacing: 8px; color: var(--accent);
+            min-height: 65px; border-radius: 0 0 4px 4px;
+        }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .key {
+            background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 18px 0;
+            font-size: 22px; font-weight: bold; cursor: pointer; color: #ddd; text-align: center;
+        }
+        .key:active { background: var(--accent); color: #000; }
+        .key-clear { color: #ff5555; }
+        .key-ok { color: #55ff55; }
+
+        /* HARDWARE STATUS */
+        .section-label { color: #00d4ff; font-size: 11px; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; }
+        .hw-grid { display: grid; gap: 8px; background: #000; padding: 10px; border-radius: 6px; }
+        .zone { padding: 10px; text-align: center; font-size: 11px; border-radius: 4px; border: 1px solid #333; }
+        .relay-btn { padding: 12px; border: none; border-radius: 4px; font-family: 'Courier New'; font-weight: bold; cursor: pointer; }
+
+        /* USER CRUD */
+        .maint-box { background: #111; padding: 15px; border-radius: 8px; border: 1px solid #222; margin-top: 20px; }
+        .maint-box input { width: 100%; background: #000; border: 1px solid #333; color: var(--accent); padding: 10px; margin-bottom: 8px; border-radius: 4px;}
+        .user-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+        .user-table td { padding: 10px 4px; border-bottom: 1px solid #222; }
+        .mini-btn { background: #442222; color: #ff5555; border: 1px solid #663333; padding: 6px 10px; cursor: pointer; border-radius: 3px; font-family: 'Courier New'; }
+
+        .console { background: var(--term-bg); border: 1px solid #222; height: 100px; overflow-y: auto; padding: 10px; font-size: 12px; color: #00ff00; margin-top: 15px; }
+        .control-btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; }
+        .btn-arm { background: var(--armed); color: white; }
+        .btn-disarm { background: var(--ready); color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="panel-container">
+    <div class="term-header">
+        <span id="rf-mon">RF_ID: [SEARCHING]</span>
+        <span id="sys-stat">STATUS: --</span>
+    </div>
+    <div class="pin-display" id="pin-display">READY</div>
+
+    <div class="keypad">
+        <div class="key" onclick="press(1)">1</div><div class="key" onclick="press(2)">2</div><div class="key" onclick="press(3)">3</div>
+        <div class="key" onclick="press(4)">4</div><div class="key" onclick="press(5)">5</div><div class="key" onclick="press(6)">6</div>
+        <div class="key" onclick="press(7)">7</div><div class="key" onclick="press(8)">8</div><div class="key" onclick="press(9)">9</div>
+        <div class="key key-clear" onclick="clr()">CLR</div><div class="key" onclick="press(0)">0</div><div class="key key-ok" onclick="doAction('/api/auth', {})">OK</div>
+    </div>
+
+    <div id="arm-controls">
+        <button id="btn-arm" class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'away'})">ARM SYSTEM</button>
+        <button id="btn-disarm" class="control-btn btn-disarm" style="display:none;" onclick="doAction('/api/disarm', {})">DISARM SYSTEM</button>
+    </div>
+
+    <div class="section-label">Zones & Relays</div>
+    <div class="hw-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:8px;" id="zone-grid"></div>
+    <div class="hw-grid" style="grid-template-columns: 1fr 1fr;" id="relay-grid"></div>
+
+    <div class="console" id="webConsole"></div>
+
+    <div class="maint-box">
+        <div class="section-label" style="margin-top:0">Add New Security User</div>
+        <input type="text" id="u-name" placeholder="USER NAME">
+        <input type="password" id="u-pin" placeholder="ACCESS PIN">
+        <button class="control-btn btn-disarm" style="padding:10px" onclick="saveUser()">COMMIT TO HARDWARE</button>
+        
+        <div class="section-label">Authorized Users</div>
+        <table class="user-table"><tbody id="user-rows"></tbody></table>
+    </div>
+</div>
+
+<script>
+    let currentPin = "";
+    let lastRf = "";
+
+    function log(msg, err=false) {
+        const box = document.getElementById('webConsole');
+        const line = document.createElement('div');
+        line.style.color = err ? "var(--armed)" : "var(--accent)";
+        line.innerHTML = `> ${msg}`;
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function press(n) { 
+        if(currentPin.length < 6) { 
+            currentPin += n; 
+            document.getElementById('pin-display').innerText = "*".repeat(currentPin.length); 
+        } 
+    }
+
+    function clr() { currentPin = ""; document.getElementById('pin-display').innerText = "READY"; }
+
+    async function doAction(url, body) {
+        if(!currentPin) { log("PIN REQUIRED", true); return; }
+        body.pin = currentPin;
+        try {
+            const r = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+            const d = await r.json();
+            if(d.authenticated || d.success) log(`SUCCESS: ${d.name || 'OK'}`);
+            else log("DENIED: INVALID PIN", true);
+        } catch(e) { log("COMMS ERROR", true); }
+        clr(); update();
+    }
+
+    async function toggleRelay(idx, state) {
+        await fetch('/api/relay/toggle', { method: 'POST', body: JSON.stringify({index: idx, state: state}) });
+        update();
+    }
+
+    async function saveUser() {
+        const n = document.getElementById('u-name').value;
+        const p = document.getElementById('u-pin').value;
+        if(!n || !p) return;
+        await fetch('/api/users/add', { method: 'POST', body: JSON.stringify({name:n, pin:p}) });
+        log(`DB_SAVED: ${n}`);
+        document.getElementById('u-name').value = "";
+        document.getElementById('u-pin').value = "";
+        refreshUsers();
+    }
+
+    async function deleteUser(name) {
+        if(!confirm(`Delete ${name}?`)) return;
+        await fetch('/api/users/delete', { method: 'POST', body: JSON.stringify({name}) });
+        log(`DELETED: ${name}`);
+        refreshUsers();
+    }
+
+    async function refreshUsers() {
+        try {
+            const res = await fetch('/api/users');
+            const users = await res.json();
+            document.getElementById('user-rows').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.name}</td>
+                    <td style="text-align:right"><button class="mini-btn" onclick="deleteUser('${u.name}')">DEL</button></td>
+                </tr>
+            `).join('');
+        } catch(e) {}
+    }
+
+    async function update() {
+        try {
+            const res = await fetch('/api/status?t=' + Date.now());
+            const data = await res.json();
+            
+            // RF Sniffer
+            if(data.last_rf && data.last_rf !== "0x00000000" && data.last_rf !== lastRf) {
+                lastRf = data.last_rf;
+                document.getElementById('rf-mon').innerText = "RF_ID: " + lastRf;
+                log(`RF_SNIFF: ${lastRf}`, false);
+            }
+
+            // State & Status
+            const isArmed = data.config.state !== 0;
+            document.getElementById('btn-arm').style.display = isArmed ? "none" : "block";
+            document.getElementById('btn-disarm').style.display = isArmed ? "block" : "none";
+            document.getElementById('sys-stat').innerText = "STATUS: " + (isArmed ? "ARMED" : "READY");
+
+            // Zones & Relays
+            document.getElementById('zone-grid').innerHTML = data.zones.map((z, i) => `
+                <div class="zone" style="background:${z ? '#411' : '#111'}; border-color:${z ? '#f00' : '#333'}">Z${i+1}</div>
+            `).join('');
+
+            document.getElementById('relay-grid').innerHTML = data.relays.map((r, i) => `
+                <button class="relay-btn" style="background:${r ? 'var(--relay-on)' : '#222'}; color:${r ? '#000' : '#888'}" onclick="toggleRelay(${i}, ${r ? 0 : 1})">
+                    R${i+1} ${r ? 'ON' : 'OFF'}
+                </button>
+            `).join('');
+        } catch(e) {}
+    }
+
+    setInterval(update, 2000);
+    update(); refreshUsers();
+</script>
+</body>
+</html>

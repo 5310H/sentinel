@@ -1,0 +1,8 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# OTA-enabled partition table for 2MB flash
+# 896KB app partitions (fits ~850KB binary with overhead)
+nvs,      data, nvs,     0x9000,  0x4000,
+phy_init, data, phy,     0xd000,  0x1000,
+factory,  app,  factory, 0x10000, 0xe0000,
+ota_0,    app,  ota_0,   0xf0000, 0xe0000,
+storage,  data, spiffs,  0x1d0000,0x30000,

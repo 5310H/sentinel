@@ -1,0 +1,9 @@
+[Thu Dec 25 22:08:32 2025] ARM-CHANGE: System Arming (Mode: 2)
+[Thu Dec 25 22:08:32 2025] ARM-CHANGE: System Fully Armed
+[Thu Dec 25 22:08:32 2025] INFO: Entry delay started
+[Thu Dec 25 22:08:32 2025] [1;31mALARM[0m: UNAUTHORIZED: Invalid PIN attempt: 5555
+[Fri Dec 26 10:18:46 2025] INFO: USER_MOD: Added/Updated user Kevin (ID: 1)
+[Fri Dec 26 10:18:46 2025] ARM-CHANGE: System Arming (Mode: AWAY)
+[Fri Dec 26 10:18:46 2025] INFO: System DISARMED by Kevin
+[Fri Dec 26 10:18:46 2025] [1;31mALARM[0m: CRITICAL: Panic Button Activated!
+[Fri Dec 26 10:18:46 2025] INFO: System DISARMED by Kevin

@@ -1,0 +1,11 @@
+[{
+    "id": 1,
+    "name": "Default Rule",
+    "Enabled": false,
+    "TriggerZoneID": 1,
+    "TriggerCondition": "open",
+    "RequiredState": 0,
+    "ActionRelayID": 1,
+    "ActionType": 0,
+    "DurationSec": 0
+}]

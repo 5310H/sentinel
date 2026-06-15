@@ -1,0 +1,60 @@
+/* 1. ALARM CREATION (POST /v1/alarms) */
+/* Triggered when a zone trips AND its corresponding o->monitor_ gate is true */
+{
+  "name": "string",         // From o->name
+  "phone": "string",        // From o->phone
+  "pin": "string",          // From o->pin
+  "location": {
+    "address": {
+      "line1": "string",    // From o->address1
+      "line2": "string",    // From o->address2
+      "city": "string",     // From o->city
+      "state": "string",    // From o->state
+      "zip": "string"       // From o->zip
+    },
+    "coordinates": {
+      "lat": 0.0,           // From o->lat
+      "lng": 0.0            // From o->lng
+    }
+  },
+  /* TRIGGER NOTE: These booleans are derived strictly from the 'z->type' field. 
+     If z->type == "police", then "police": true is sent. 
+     The 'o->monitor_police' flag is only a local gatekeeper and NOT sent here. */
+  "services": {             
+    "police": false,        // Set TRUE if zone type is "police"
+    "fire": false,          // Set TRUE if zone type is "fire"
+    "medical": false,       // Set TRUE if zone type is "medical"
+    "other": false          // Set TRUE if zone type is "other"
+  },
+  "instructions": {         
+    "entry": "string"       // Formatted as: "z->location: z->mfg z->model (z->description)"
+  }
+}
+
+/* 2. CONTACT SYNC (POST /v1/alarms/{id}/people) */
+/* Triggered for each user in setup.json where notify == "service" */
+{
+  "name": "string",         // From u->name
+  "phone": "string",        // From u->phone
+  "pin": "string"           // From u->pin (Secondary contact auth code)
+}
+
+/* 3. ZONE EVENTS (POST /v1/alarms/{id}/events) */
+/* Triggered when subsequent zones trip while an alarm is already active */
+{
+  /* TRIGGER NOTE: event_type is pulled directly from the 'z->type' field */
+  "event_type": "string",   // From z->type (e.g., "police")
+  "event_source": "string", // From z->location (e.g., "Main Garage")
+  "event_body": {
+    "value": "string",      // From z->description
+    "mfg": "string",        // From z->mfg
+    "model": "string"       // From z->model
+  }
+}
+
+/* 4. CANCELLATION (POST /v1/alarms/{id}/status) */
+/* Triggered locally when a valid PIN is entered on the keypad */
+{
+  "status": "CANCELED",     // Static command to stand down
+  "pin": "string"           // The specific PIN used to disarm the system
+}

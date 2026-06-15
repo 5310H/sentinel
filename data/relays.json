@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "name": "External Siren",
+    "description": "External Siren",
+    "duration": 60,
+    "location": "Outside Northside",
+    "type": "alarm",
+    "is_repeat": false,
+    "gpio": 2
+  },
+  {
+    "id": 2,
+    "name": "Internal Siren",
+    "description": "Internal Sounder",
+    "duration": 320,
+    "location": "Furnace Ceiling",
+    "type": "alarm",
+    "is_repeat": true,
+    "gpio": 4
+  },
+  {
+    "id": 3,
+    "name": "Chime",
+    "description": "Activity chiime",
+    "duration": 30,
+    "location": "_",
+    "type": "chime",
+    "is_repeat": false,
+    "gpio": 15
+  },
+  {
+    "id": 4,
+    "name": "Relay 4",
+    "description": "_",
+    "duration": 60,
+    "location": "_",
+    "type": "_",
+    "is_repeat": false,
+    "gpio": 0
+  },
+  {
+    "id": 5,
+    "name": "Relay 5",
+    "description": "_",
+    "duration": 0,
+    "location": "_",
+    "type": "_",
+    "is_repeat": false,
+    "gpio": 4
+  },
+  {
+    "id": 6,
+    "name": "Relay 6",
+    "description": "Relay 6",
+    "duration": 0,
+    "location": "_",
+    "type": "_",
+    "is_repeat": false,
+    "gpio": 0
+  },
+  {
+    "id": 7,
+    "name": "Relay 7",
+    "description": "Relay 7",
+    "duration": 0,
+    "location": "_",
+    "type": "_",
+    "is_repeat": false,
+    "gpio": 0
+  },
+  {
+    "id": 8,
+    "name": "Relay 8 ",
+    "description": "Relay 8",
+    "duration": 0,
+    "location": "_",
+    "type": "_",
+    "is_repeat": false,
+    "gpio": 4
+  }
+]

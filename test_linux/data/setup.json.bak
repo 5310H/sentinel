@@ -1,0 +1,35 @@
+{
+	"owner":	{
+		"AccountID":	"SENTINEL-CORE-001",
+		"PIN":	1234,
+		"Name":	"Main Office",
+		"Latitude":	34.05,
+		"Longitude":	-118.24,
+		"EntryDelay":	30,
+		"ExitDelay":	60
+	},
+	"users":	[{
+			"ID":	1,
+			"Name":	"Admin",
+			"PIN":	"1234",
+			"IsAdmin":	true
+		}],
+	"zones":	[{
+			"ID":	1,
+			"Name":	"Front Door",
+			"PinNumber":	4,
+			"IsPerimeter":	true
+		}],
+	"relays":	[{
+			"ID":	1,
+			"Name":	"Siren",
+			"PinNumber":	17
+		}],
+	"rules":	[{
+			"ID":	1,
+			"Name":	"NightAlarm",
+			"Enabled":	true,
+			"TriggerZoneID":	1,
+			"ActionRelayID":	1
+		}]
+}

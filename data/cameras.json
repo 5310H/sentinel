@@ -1,0 +1,26 @@
+[
+  {
+    "hostname": "192.168.1.100",
+    "port": 80,
+    "friendly_name": "Front Door Camera",
+    "camera_id": "camera_front",
+    "enabled": true,
+    "snapshot_cmd": "http://192.168.1.100/camera/camera_front"
+  },
+  {
+    "hostname": "camera-garage.local",
+    "port": 80,
+    "friendly_name": "Garage Camera",
+    "camera_id": "camera_garage",
+    "enabled": true,
+    "snapshot_cmd": "http://camera-garage.local/camera/camera_garage"
+  },
+  {
+    "hostname": "192.168.1.102",
+    "port": 80,
+    "friendly_name": "Backyard Camera",
+    "camera_id": "camera_back",
+    "enabled": false,
+    "snapshot_cmd": "http://192.168.1.102/camera/camera_back"
+  }
+]

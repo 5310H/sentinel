@@ -1,0 +1,31 @@
+[
+  {
+    "comment": "Tuya Device Template - Zone Configuration",
+    "device_id": "auto_assigned_by_tuya",
+    "name": "Motion Sensor",
+    "enabled": true,
+    "zone": {
+      "id": 65,
+      "description": "PIR Motion Sensor",
+      "type": "1",
+      "call": "2",
+      "location": "Hallway",
+      "model": "Tuya PIR",
+      "manufacturer": "Tuya",
+      "is_chime": false,
+      "is_alarm_on_armed_only": true,
+      "is_perimeter": false,
+      "is_interior": true,
+      "is_panic": false
+    },
+    "relay": {
+      "id": 33,
+      "description": "Smart Switch",
+      "duration": 0,
+      "location": "Living Room",
+      "type": "_",
+      "is_repeat": false
+    }
+  }
+]
+

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel User Management</title>
+    <script>
+        if (!sessionStorage.getItem('sentinel_token')) {
+            window.location.replace("index.html");
+        }
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        :root { 
+            --bg: #0a0a0a; 
+            --panel: #1a1a1a; 
+            --ready: #28a745; 
+            --not: #ffc107; 
+            --armed: #dc3545; 
+            --accent: #00ff00;
+            --input-bg: #222;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Courier New', monospace; 
+            background: var(--bg); 
+            color: white; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            padding: 10px;
+        }
+        
+        .panel-container {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            border: 6px solid #333;
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        /* --- Form Styling --- */
+        .form-card {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        label { font-size: 11px; color: #666; text-transform: uppercase; }
+
+        input, select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid #444;
+            color: var(--accent);
+            padding: 12px;
+            margin: 5px 0 15px 0;
+            font-family: 'Courier New', monospace;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input:focus { border-color: var(--accent); outline: none; }
+
+        /* --- Buttons --- */
+        .btn-action {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: black; }
+        .btn-primary:active { background: #00cc00; transform: translateY(2px); }
+
+        .btn-secondary { background: #333; color: white; margin-top: 10px; font-size: 11px; }
+
+        /* --- User List Grid --- */
+        .user-item {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .user-name { color: var(--accent); font-size: 16px; font-weight: bold; }
+        .user-meta { color: #888; font-size: 11px; margin-top: 4px; }
+        .notify-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border: 1px solid #444;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-small {
+            flex: 1;
+            padding: 8px;
+            font-size: 10px;
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-del { color: var(--armed); border-color: var(--armed); }
+        .btn-test { color: var(--not); border-color: var(--not); }
+
+        .sync-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--ready);
+            box-shadow: 0 0 8px var(--ready);
+            margin-left: 5px;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="header">
+            <p class="panel-title">USER MANAGEMENT <span class="sync-status"></span></p>
+            <a href="index.html" style="color: #666; font-size: 11px; text-decoration: none;">&larr; BACK TO PANEL</a>
+        </div>
+
+        <div class="form-card">
+            <label id="form-label">Create New User</label>
+            <input type="text" id="name" placeholder="NAME">
+            <input type="password" id="pin" placeholder="PIN CODE (LOGIN)">
+            <input type="password" id="emergency-pin" placeholder="EMERGENCY PIN (NOONLIGHT)">
+            <input type="email" id="email" placeholder="EMAIL">
+            <div style="margin: 10px 0; display: flex; align-items: center;">
+                <input type="checkbox" id="is-admin" style="width: auto; margin: 0 10px 0 0;">
+                <label for="is-admin" style="color: var(--accent); cursor: pointer;">Administrator Privileges</label>
+            </div>
+            <label>Notify Type</label>
+            <select id="notify">
+                <option value="1">1 - SILENT</option>
+                <option value="2">2 - EMAIL</option>
+                <option value="3">3 - TELEGRAM</option>
+                <option value="4">4 - NOONLIGHT</option>
+            </select>
+            <button class="btn-action btn-primary" id="save-btn" onclick="handleSave()">Execute Add</button>
+            <button class="btn-action btn-secondary" id="cancel-btn" style="display:none;" onclick="resetForm()">Cancel Request</button>
+        </div>
+
+        <div id="user-list">
+            <div style="text-align:center; color:#444; font-size:12px;">Accessing database...</div>
+        </div>
+    </div>
+
+    <script>
+        const TYPES = ["", "LOCAL", "EMAIL", "TELE", "PRO"];
+
+        function escapeHtml(text) {
+            if (!text) return text;
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                       .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/users?t=' + Date.now());
+                const users = await res.json();
+                const list = document.getElementById('user-list');
+                
+                list.innerHTML = users.map(u => `
+                    <div class="user-item">
+                        <div class="user-name">${escapeHtml(u.name)} <span class="notify-badge">T-${u.notify}</span> ${u.emergency_pin ? '<span class="notify-badge" style="color:orange;">911</span>' : ''}</div>
+                        <div class="user-meta">${escapeHtml(u.email) || 'NO EMAIL STORED'}</div>
+                        <div class="action-row">
+                            <button class="btn-small" onclick="setEdit('${u.name}','${u.email}',${u.notify},'${u.emergency_pin || ''}', ${u.is_admin})">EDIT</button>
+                            <button class="btn-small btn-test" onclick="testNotify('${u.name}')">TEST</button>
+                            <button class="btn-small btn-del" onclick="deleteUser('${u.name}')">DROP</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error("DB Load Error");
+            }
+        }
+
+        function setEdit(name, email, notify, emergencyPin, isAdmin) {
+            document.getElementById('name').value = name;
+            document.getElementById('name').disabled = true;
+            document.getElementById('email').value = email;
+            document.getElementById('notify').value = notify;
+            document.getElementById('emergency-pin').value = emergencyPin || '';
+            document.getElementById('is-admin').checked = isAdmin;
+            document.getElementById('save-btn').innerText = "Update Record";
+            document.getElementById('form-label').innerText = "Edit User: " + name;
+            document.getElementById('cancel-btn').style.display = "block";
+        }
+
+        function resetForm() {
+            document.getElementById('name').value = "";
+            document.getElementById('name').disabled = false;
+            document.getElementById('pin').value = "";
+            document.getElementById('emergency-pin').value = "";
+            document.getElementById('email').value = "";
+            document.getElementById('is-admin').checked = false;
+            document.getElementById('save-btn').innerText = "Execute Add";
+            document.getElementById('form-label').innerText = "Create New User";
+            document.getElementById('cancel-btn').style.display = "none";
+        }
+
+        async function handleSave() {
+            const isUpdate = document.getElementById('save-btn').innerText.includes("Update");
+            const payload = {
+                name: document.getElementById('name').value,
+                pin: document.getElementById('pin').value,
+                emergency_pin: document.getElementById('emergency-pin').value,
+                email: document.getElementById('email').value,
+                notify: parseInt(document.getElementById('notify').value),
+                is_admin: document.getElementById('is-admin').checked
+            };
+
+            await fetch(isUpdate ? '/api/users/update' : '/api/users/add', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            resetForm();
+            loadUsers();
+        }
+
+        async function deleteUser(name) {
+            if(confirm("Confirm deletion of " + name + "?")) {
+                await fetch('/api/users/delete', { method: 'POST', body: JSON.stringify({name}) });
+                loadUsers();
+            }
+        }
+
+        async function testNotify(name) {
+            await fetch('/api/test_notify?name=' + name);
+            alert("Signal dispatched to " + name);
+        }
+
+        loadUsers();
+    </script>
+</body>
+</html>

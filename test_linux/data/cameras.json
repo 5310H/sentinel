@@ -1,0 +1,19 @@
+[{
+		"hostname":	"192.168.69.45",
+		"port":	554,
+		"friendly_name":	"Thingino 45 Camera",
+		"camera_id":	"ch0",
+		"username":	"thingino",
+		"password":	"thingino",
+		"enabled":	true,
+		"snapshot_cmd":	"http://root:2017Home2017@192.168.69.45/x/image.cgi"
+	}, {
+		"hostname":	"192.168.69.47",
+		"port":	554,
+		"friendly_name":	"Thingino 47 Camera",
+		"camera_id":	"ch2",
+		"username":	"thingino",
+		"password":	"thingino",
+		"enabled":	true,
+		"snapshot_cmd":	"http://root:2017Home2017@192.168.69.47/x/image.cgi"
+	}]

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Maintenance</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #1890ff;
+            --danger: #cf1322;
+            --success: #52c41a;
+            --border: #d9d9d9;
+        }
+
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); padding: 20px; color: #333; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        
+        .item { 
+            background: var(--card-bg); border: 1px solid var(--border); 
+            padding: 15px; border-radius: 8px; display: flex; 
+            justify-content: space-between; align-items: center; 
+            transition: all 0.3s ease;
+        }
+
+        /* Styles for the "Tripped" state */
+        .item.active { background: #fff1f0; border-color: #ffa39e; color: var(--danger); }
+        .item.active strong { color: var(--danger); }
+
+        .btn { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; transition: 0.2s; text-decoration: none; display: inline-block; }
+        .btn-back { background: #555; color: white; margin-bottom: 20px; }
+        
+        .btn-trip { background: #fafafa; border: 1px solid var(--border); color: #666; }
+        .btn-trip:hover { background: #e6e6e6; }
+        
+        /* Red button for RESET */
+        .active .btn-trip { background: var(--danger); color: white; border-color: var(--danger); }
+
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+        .on { background: #f6ffed; color: var(--success); border: 1px solid #b7eb8f; }
+        .off { background: #f5f5f5; color: #8c8c8c; border: 1px solid var(--border); }
+
+        h2, h3 { margin-top: 0; }
+        small { color: #888; }
+        .active small { color: #cf1322; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="/" class="btn btn-back">← BACK TO KEYPAD</a>
+
+        <div class="card">
+            <h2>System Status: <span id="sysState" style="color:var(--primary);">CONNECTING...</span></h2>
+            <p>Site: <strong id="siteName">--</strong></p>
+        </div>
+
+        <h3>Zones (Sensors)</h3>
+        <div id="zGrid" class="grid"></div>
+
+        <h3 style="margin-top: 30px;">Relays (Outputs)</h3>
+        <div id="rGrid" class="grid"></div>
+    </div>
+
+    <script>
+        const STATE_NAMES = ["DISARMED", "EXIT DELAY", "ARMED", "ENTRY DELAY", "ALARMED"];
+
+        // Toggle a zone via the API
+        function trigger(gpio) {
+            // We pass the GPIO number as 'id' to match main_mock.c logic
+            fetch(`/api/trigger?id=${gpio}`)
+                .then(r => {
+                    if (!r.ok) throw new Error("Network error");
+                    update(); // Refresh UI immediately after click
+                })
+                .catch(err => console.error("Trigger failed:", err));
+        }
+        
+        async function update() {
+            try {
+                // cache-busting timestamp 't' ensures we don't get stale data
+                const response = await fetch('/api/status?t=' + Date.now());
+                const data = await response.json();
+
+                // 1. Update Header
+                const config = data.config || {};
+                document.getElementById('siteName').innerText = config.name || "Unknown Site";
+                document.getElementById('sysState').innerText = STATE_NAMES[config.state] || "UNKNOWN";
+
+                // 2. Render Zones Grid
+                const zGrid = document.getElementById('zGrid');
+                zGrid.innerHTML = data.zones.map(z => {
+                    // Logic: Check for string "true" or boolean true
+                    const isViolated = (z.violated === "true" || z.violated === true);
+                    
+                    return `
+                        <div class="item ${isViolated ? 'active' : ''}">
+                            <div>
+                                <strong>${z.name}</strong><br>
+                                <small>${z.type.toUpperCase()} (Pin ${z.gpio})</small>
+                            </div>
+                            <button class="btn btn-trip" onclick="trigger(${z.gpio})">
+                                ${isViolated ? 'RESET' : 'TRIP'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+                // 3. Render Relays Grid
+                const rGrid = document.getElementById('rGrid');
+                rGrid.innerHTML = data.relays.map(r => {
+                    const isActive = (r.active === "true" || r.active === true);
+                    return `
+                        <div class="item">
+                            <div>
+                                <strong>${r.name}</strong><br>
+                                <small>${r.type || 'General Relay'}</small>
+                            </div>
+                            <span class="status-badge ${isActive ? 'on' : 'off'}">
+                                ${isActive ? '● ACTIVE' : '○ READY'}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Connection lost:", err);
+                document.getElementById('sysState').innerText = "OFFLINE";
+            }
+        }
+
+        // Poll every 2 seconds
+        setInterval(update, 2000);
+        
+        // Initial load
+        update();
+    </script>
+</body>
+</html>

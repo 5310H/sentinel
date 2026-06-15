@@ -1,0 +1,33 @@
+[
+  {
+    "comment": "ESPHome Device Template - Zone Configuration",
+    "hostname": "device-name.local",
+    "port": 6053,
+    "friendly_name": "Smart Plug",
+    "password": "api_password_here",
+    "encryption_key": "base64_encryption_key_here",
+    "enabled": true,
+    "zone": {
+      "id": 33,
+      "description": "Contact Sensor",
+      "type": "1",
+      "call": "2",
+      "location": "Kitchen",
+      "model": "ESPHome",
+      "manufacturer": "ESPHome",
+      "is_chime": false,
+      "is_alarm_on_armed_only": true,
+      "is_perimeter": true,
+      "is_interior": false,
+      "is_panic": false
+    },
+    "relay": {
+      "id": 9,
+      "description": "Smart Switch",
+      "duration": 0,
+      "location": "Kitchen",
+      "type": "_",
+      "is_repeat": false
+    }
+  }
+]

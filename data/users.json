@@ -1,0 +1,17 @@
+[{
+		"name":	"Admin",
+		"emergency_pin":	"1234",
+		"phone":	"14404652865",
+		"email":	"online@trahreg.com",
+		"notify":	4,
+		"is_admin":	true,
+		"requires_2fa":	false
+	}, {
+		"name":	"User1",
+		"emergency_pin":	"5678",
+		"phone":	"14404652865",
+		"email":	"2020@trahreg.com",
+		"notify":	2,
+		"is_admin":	false,
+		"requires_2fa":	false
+	}]

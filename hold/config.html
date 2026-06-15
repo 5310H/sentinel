@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel - System Config</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --panel: #2a2a2a;
+            --accent: #007bff;
+            --border: #444;
+            --text-dim: #aaa;
+        }
+
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--bg); color: white; margin: 0; padding: 20px; 
+        }
+
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .btn-back { color: var(--accent); text-decoration: none; font-weight: bold; font-size: 14px; }
+
+        .card { 
+            background: var(--panel); border-radius: 12px; border: 1px solid var(--border);
+            padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        h2 { margin-top: 0; font-size: 18px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-item { font-size: 14px; padding: 8px 0; border-bottom: 1px solid #333; }
+        .label { color: var(--text-dim); display: block; font-size: 11px; text-transform: uppercase; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th { text-align: left; color: var(--text-dim); font-size: 11px; text-transform: uppercase; padding: 8px; border-bottom: 1px solid var(--border); }
+        td { padding: 12px 8px; border-bottom: 1px solid #333; }
+
+        .badge { 
+            padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; 
+            text-transform: uppercase; display: inline-block;
+        }
+        .bg-peri { background: #6f42c1; color: white; }
+        .bg-norm { background: #444; color: #ccc; }
+        .violated { color: #ffc107; font-weight: bold; }
+        .secure { color: #28a745; }
+
+        .refresh-bar { text-align: center; color: var(--text-dim); font-size: 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="btn-back">← DASHBOARD</a>
+            <h1 style="font-size: 20px; margin: 0;">SYSTEM CONFIG</h1>
+        </div>
+
+        <div class="card">
+            <h2>General Info</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">Site Name</span>
+                    <span id="cfg-name">Loading...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">System State</span>
+                    <span id="cfg-state">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Zones</h2>
+            <table id="zone-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name / Type</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="3" style="text-align:center;">Fetching zones...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Relays / Outputs</h2>
+            <table id="relay-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>State</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="3" style="text-align:center;">Fetching relays...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="refresh-bar" id="last-update">Syncing...</div>
+    </div>
+
+    <script>
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/status?t=' + Date.now());
+                const data = await res.json();
+
+                // 1. Update General Info
+                document.getElementById('cfg-name').innerText = data.siteName || "Sentinel Node";
+                const states = ["DISARMED", "ARMED AWAY", "ARMED STAY", "ARMED NIGHT", "ALARM TRIGGERED"];
+                document.getElementById('cfg-state').innerText = states[data.state] || "UNKNOWN";
+
+                // 2. Build Zones Table
+                const zoneBody = document.querySelector('#zone-table tbody');
+                zoneBody.innerHTML = '';
+                data.zones.forEach(z => {
+                    const row = `
+                        <tr>
+                            <td>${z.id}</td>
+                            <td>
+                                <div>${z.name}</div>
+                                <div style="font-size:11px; color:#888">${z.type} ${z.peri ? '<span class="badge bg-peri">PERIMETER</span>' : '<span class="badge bg-norm">INTERIOR</span>'}</div>
+                            </td>
+                            <td class="${z.violated ? 'violated' : 'secure'}">
+                                ${z.violated ? '● OPEN' : '✓ SECURE'}
+                            </td>
+                        </tr>
+                    `;
+                    zoneBody.insertAdjacentHTML('beforeend', row);
+                });
+
+                // 3. Build Relays Table
+                const relayBody = document.querySelector('#relay-table tbody');
+                relayBody.innerHTML = '';
+                if(data.relays.length === 0) {
+                    relayBody.innerHTML = '<tr><td colspan="3" style="color:#666; text-align:center">No relays configured</td></tr>';
+                } else {
+                    data.relays.forEach(r => {
+                        const row = `
+                            <tr>
+                                <td>${r.name}</td>
+                                <td style="color:#888">${r.type}</td>
+                                <td style="color:${r.active ? '#007bff' : '#666'}">
+                                    ${r.active ? '<b>ACTIVE</b>' : 'INACTIVE'}
+                                </td>
+                            </tr>
+                        `;
+                        relayBody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+
+                document.getElementById('last-update').innerText = "Last Sync: " + new Date().toLocaleTimeString();
+
+            } catch (e) {
+                document.getElementById('last-update').innerText = "Sync Failed - Check Server Connection";
+            }
+        }
+
+        // Refresh data every 5 seconds while viewing config
+        setInterval(loadConfig, 5000);
+        loadConfig();
+    </script>
+</body>
+</html>

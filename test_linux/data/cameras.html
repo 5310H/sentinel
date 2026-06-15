@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel - Camera Management</title>
+    <style>
+        :root {
+            --bg: #0a0a0a; --panel: #1a1a1a; --accent: #00ff00;
+            --ready: #28a745; --armed: #dc3545; --warn: #ffc107;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+                background: #181c24;
+                color: #e0e0e0;
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .camera-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .camera-actions button {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px;
+            font-size: 11px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.visible { display: flex; }
+        
+        .modal-content {
+            background: var(--panel);
+            border: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        .modal-title {
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .form-input {
+            width: 100%;
+            background: #111;
+            border: 2px solid #444;
+            color: var(--accent);
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .form-checkbox {
+            margin-right: 8px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-actions button { flex: 1; padding: 12px; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state-icon { font-size: 48px; margin-bottom: 20px; }
+        
+        .stats-bar {
+            background: var(--panel);
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .fullscreen-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .fullscreen-modal.visible { display: flex; }
+        
+        .fullscreen-image {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--armed);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📹 Camera Management</h1>
+            <div>
+                <button class="btn" onclick="location.href='cameras_live.html'">📹 Live View</button>
+                <button class="btn" onclick="showAddCameraModal()">➕ Add Camera</button>
+                <button class="btn btn-secondary" onclick="location.href='index.html'">🏠 Home</button>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Cameras</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="stat-online">0</div>
+                <div class="stat-label">Online</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="stat-snapshots">0</div>
+                <div class="stat-label">Total Snapshots</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="stat-alarm">0</div>
+                <div class="stat-label">Alarm Snapshots</div>
+            </div>
+            <div class="stat" id="stat-sd">
+                <div class="stat-value" id="stat-sd-status">❓</div>
+                <div class="stat-label">SD Card</div>
+            </div>
+        </div>
+
+        <div class="camera-grid" id="camera-grid"></div>
+
+        <div class="empty-state" id="empty-state" style="display:none;">
+            <div class="empty-state-icon">📷</div>
+            <h2>No Cameras Configured</h2>
+            <p>Add your first ESP32-CAM device to get started</p>
+            <button class="btn" style="margin-top: 20px;" onclick="showAddCameraModal()">Add Camera</button>
+        </div>
+    </div>
+
+    <!-- Add/Edit Camera Modal -->
+    <div class="modal" id="camera-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-title">Add Camera</div>
+            <div class="form-group">
+                <label class="form-label">Hostname or IP Address *</label>
+                <input type="text" class="form-input" id="input-hostname" placeholder="192.168.1.100 or camera.local">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Port</label>
+                <input type="number" class="form-input" id="input-port" value="80">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Friendly Name *</label>
+                <input type="text" class="form-input" id="input-name" placeholder="Front Door Camera">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Camera Path/ID</label>
+                <input type="text" class="form-input" id="input-camera-id" value="image.jpg" placeholder="image.jpg or camera">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" class="form-checkbox" id="input-enabled" checked>
+                    <span class="form-label" style="display:inline;">Enable Camera</span>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="saveCamera()">Save</button>
+                <button class="btn btn-secondary" onclick="hideCameraModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Image Viewer -->
+    <div class="fullscreen-modal" id="fullscreen-modal" onclick="hideFullscreen()">
+        <button class="close-btn" onclick="hideFullscreen()">×</button>
+        <img class="fullscreen-image" id="fullscreen-image" src="">
+    </div>
+
+    <script>
+        let cameras = [];
+        let stats = {};
+        let sdAvailable = false;
+        const token = sessionStorage.getItem('sentinel_token') || 'test-token-123';
+
+        async function loadCameras() {
+            try {
+                console.log('Fetching cameras...');
+                const res = await fetch('/api/cameras', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                console.log('Response status:', res.status);
+                const data = await res.json();
+                console.log('Cameras data:', data);
+                if (Array.isArray(data)) {
+                    cameras = data;
+                    stats = {};
+                    sdAvailable = false;
+                } else {
+                    cameras = data.cameras || [];
+                    stats = data.stats || {};
+                    sdAvailable = data.sd_available || false;
+                }
+                console.log('Parsed cameras:', cameras.length, cameras);
+                renderCameras();
+                updateStats();
+            } catch (err) {
+                cameras = [];
+                renderCameras();
+            }
+        }
+
+        function renderCameras() {
+            console.log('renderCameras called, cameras.length:', cameras.length);
+            const grid = document.getElementById('camera-grid');
+            const empty = document.getElementById('empty-state');
+
+            if (cameras.length === 0) {
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            grid.style.display = 'grid';
+            empty.style.display = 'none';
+            grid.innerHTML = '';
+
+            cameras.forEach((cam, index) => {
+                const statusClass = !cam.enabled ? 'status-disabled' : 
+                                   cam.consecutive_failures > 2 ? 'status-offline' : 'status-online';
+                const statusText = !cam.enabled ? 'Disabled' : 
+                                  cam.consecutive_failures > 2 ? 'Offline' : 'Online';
+                const cardClass = !cam.enabled ? 'disabled' : 
+                                 cam.consecutive_failures > 2 ? 'offline' : '';
+                const lastSnapshot = cam.last_snapshot ? 
+                    new Date(cam.last_snapshot * 1000).toLocaleString() : 'Never';
+
+                grid.innerHTML += `
+                    <div class="camera-card ${cardClass}">
+                        <div class="camera-header">
+                            <div class="camera-name">${cam.friendly_name}</div>
+                            <div class="camera-status ${statusClass}">${statusText}</div>
+                        </div>
+                        <div style="width:100%;height:220px;display:flex;align-items:center;justify-content:center;background:#111;border:2px solid #333;border-radius:4px;margin-bottom:10px;">
+                         <img class="camera-snapshot" 
+                             id="snapshot-${index}" 
+                             src="/api/camera/${index}/snapshot?t=${Date.now()}" 
+                             alt="${cam.friendly_name}"
+                             style="max-width:100%;max-height:100%;object-fit:cover;display:block;"
+                             onclick="showFullscreen(${index})">
+                          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">
+                            <svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%' viewBox='0 0 320 220'><rect fill='#111' width='320' height='220'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='16' fill='#666'>No Image</text></svg>
+                          </div>
+                        </div>
+                        <div style="margin: 8px 0 8px 0; text-align:center;">
+                            <b>Live:</b><br>
+                            <div style="width:100%;max-width:320px;max-height:180px;position:relative;display:inline-block;background:#111;border:1px solid #333;border-radius:4px;">
+                                <img src="/api/camera/${index}/stream" 
+                                     style="width:100%;max-width:320px;max-height:180px;object-fit:cover;display:block;" 
+                                     alt="Live Stream">
+                            </div>
+                        </div>
+                        <div class="camera-info" id="camera-info-${index}">
+                            📍 ${cam.hostname}:${cam.port} | 🕐 ${lastSnapshot}
+                        </div>
+                        <div class="camera-actions">
+                            <button class="btn" onclick="refreshSnapshot(${index})">🔄 Refresh</button>
+                            <button class="btn btn-secondary" onclick="testCamera(${index})">🔍 Test</button>
+                            <button class="btn ${cam.enabled ? 'btn-danger' : 'btn'}" 
+                                    onclick="toggleEnabled(${index})">
+                                ${cam.enabled ? '⏸️ Disable' : '▶️ Enable'}
+                            </button>
+                            <button class="btn ${cam.sd_recording_enabled ? 'btn-danger' : 'btn-secondary'}" 
+                                    onclick="toggleSDRecording(${index})"
+                                    title="${cam.sd_recording_enabled ? 'Disable' : 'Enable'} SD recording for alarms">
+                                ${cam.sd_recording_enabled ? '💾 SD On' : '💾 SD Off'}
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteCamera(${index})">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total').textContent = cameras.length;
+            document.getElementById('stat-online').textContent = 
+                cameras.filter(c => c.enabled && c.consecutive_failures <= 2).length;
+            document.getElementById('stat-snapshots').textContent = stats.total_snapshots || 0;
+            document.getElementById('stat-alarm').textContent = stats.alarm_triggered_snapshots || 0;
+            
+            // Update SD card status
+            const sdStatus = document.getElementById('stat-sd-status');
+            const sdStat = document.getElementById('stat-sd');
+            if (sdAvailable) {
+                sdStatus.textContent = '✓';
+                sdStatus.style.color = '#2ecc71';
+                sdStat.title = 'SD card available - alarm recording enabled';
+            } else {
+                sdStatus.textContent = '✗';
+                sdStatus.style.color = '#e74c3c';
+                sdStat.title = 'SD card not available - alarm recording disabled';
+            }
+        }
+
+        function refreshSnapshot(id) {
+            const img = document.getElementById(`snapshot-${id}`);
+            img.src = `/api/camera/${id}/snapshot?t=${Date.now()}`;
+            // Update last snapshot time in UI
+            const info = document.getElementById(`camera-info-${id}`);
+            if (info) {
+                const now = new Date().toLocaleString();
+                info.innerHTML = info.innerHTML.replace(/\| 🕐 .*/, `| 🕐 ${now}`);
+            }
+        }
+
+        function showFullscreen(id) {
+            const img = document.getElementById('fullscreen-image');
+            img.src = `/api/camera/${id}/snapshot?t=${Date.now()}`;
+            document.getElementById('fullscreen-modal').classList.add('visible');
+        }
+
+        function hideFullscreen() {
+            document.getElementById('fullscreen-modal').classList.remove('visible');
+        }
+
+        async function testCamera(id) {
+            try {
+                const res = await fetch(`/api/camera/${id}/test`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    alert('✅ Camera test successful!');
+                    refreshSnapshot(id);
+                } else {
+                    alert('❌ Camera test failed - check connection');
+                }
+            } catch (err) {
+                alert('❌ Camera test failed: ' + err.message);
+            }
+        }
+
+        async function toggleEnabled(id) {
+            try {
+                const res = await fetch(`/api/camera/${id}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    loadCameras();
+                }
+            } catch (err) {
+                alert('Failed to toggle camera: ' + err.message);
+            }
+        }
+
+        async function toggleSDRecording(id) {
+            if (!sdAvailable) {
+                alert('⚠️ SD card not available\n\nPlease insert an SD card to enable alarm recording.');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/camera/${id}/sd_recording`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    loadCameras();
+                } else {
+                    const data = await res.json();
+                    alert('Failed to toggle SD recording: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Failed to toggle SD recording: ' + err.message);
+            }
+        }
+
+        async function deleteCamera(id) {
+            if (!confirm(`Delete camera "${cameras[id].friendly_name}"?`)) return;
+            
+            try {
+                const res = await fetch(`/api/camera/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    loadCameras();
+                }
+            } catch (err) {
+                alert('Failed to delete camera: ' + err.message);
+            }
+        }
+
+        function showAddCameraModal() {
+            console.log('Opening add camera modal...');
+            document.getElementById('modal-title').textContent = 'Add Camera';
+            document.getElementById('input-hostname').value = '';
+            document.getElementById('input-port').value = '80';
+            document.getElementById('input-name').value = '';
+            document.getElementById('input-camera-id').value = 'image.jpg';
+            document.getElementById('input-enabled').checked = true;
+            document.getElementById('camera-modal').classList.add('visible');
+            console.log('Modal should now be visible');
+        }
+
+        function hideCameraModal() {
+            document.getElementById('camera-modal').classList.remove('visible');
+        }
+
+        async function saveCamera() {
+            const hostname = document.getElementById('input-hostname').value.trim();
+            const port = parseInt(document.getElementById('input-port').value) || 80;
+            const name = document.getElementById('input-name').value.trim();
+            const cameraId = document.getElementById('input-camera-id').value.trim() || 'image.jpg';
+            const enabled = document.getElementById('input-enabled').checked;
+
+            if (!hostname || !name) {
+                alert('Hostname and friendly name are required');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/camera/add', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hostname, port, friendly_name: name, 
+                        camera_id: cameraId, enabled
+                    })
+                });
+
+                if (res.ok) {
+                    hideCameraModal();
+                    loadCameras();
+                } else {
+                    const err = await res.json();
+                    alert('Failed to add camera: ' + (err.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Failed to add camera: ' + err.message);
+            }
+        }
+
+        // Auto-refresh snapshots every 30 seconds
+        setInterval(() => {
+            cameras.forEach((cam, index) => {
+                if (cam.enabled && cam.consecutive_failures <= 2) {
+                    refreshSnapshot(index);
+                }
+            });
+        }, 30000);
+
+        // Initial load
+        loadCameras();
+    </script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/565/565547.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel Mobile</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        :root { --bg: #1a1a1a; --panel: #2a2a2a; --ready: #28a745; --not: #ffc107; --armed: #dc3545; --accent: #007bff; }
+        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; display: flex; justify-content: center; padding: 20px; }
+        .portal { background: var(--panel); padding: 25px; border-radius: 16px; text-align: center; width: 100%; max-width: 400px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        #live-time { font-size: 48px; font-weight: 200; margin: 0; line-height: 1; }
+        #live-date { font-size: 14px; color: var(--accent); text-transform: uppercase; margin: 10px 0 20px 0; letter-spacing: 2px; }
+
+        .status-badge { display: block; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }
+        .ready { background: var(--ready); }
+        .not-ready { background: var(--not); color: #000; }
+        .armed { background: var(--armed); }
+        .offline { background: #444; color: #888; }
+
+        .display { background: #000; padding: 15px; font-size: 32px; margin-bottom: 20px; border-radius: 8px; color: #0f0; height: 45px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; letter-spacing: 8px; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .key { background: #333; padding: 22px 0; border-radius: 12px; font-size: 24px; cursor: pointer; border: 1px solid #444; touch-action: manipulation; }
+        .key:active { background: var(--accent); }
+
+        .menu-btn { display: block; width: 100%; height: 60px; padding: 20px 0; margin: 12px 0; border-radius: 12px; font-weight: bold; font-size: 18px; border: none; color: white; cursor: pointer; text-decoration: none; box-sizing: border-box; text-align: center; }
+        .btn-arm { background: var(--accent); }
+        .btn-disarm { background: var(--ready); }
+        .btn-nav { background: #444; }
+    </style>
+</head>
+<body>
+    <div class="portal">
+        <div id="quick-status" class="status-badge offline">CONNECTING...</div>
+
+        <div id="auth-section">
+            <div id="live-time">--:--:--</div>
+            <div id="live-date">---</div>
+            <div class="display" id="pin-display"></div>
+            <div class="keypad">
+                <div class="key" onclick="press(1)">1</div><div class="key" onclick="press(2)">2</div><div class="key" onclick="press(3)">3</div>
+                <div class="key" onclick="press(4)">4</div><div class="key" onclick="press(5)">5</div><div class="key" onclick="press(6)">6</div>
+                <div class="key" onclick="press(7)">7</div><div class="key" onclick="press(8)">8</div><div class="key" onclick="press(9)">9</div>
+                <div class="key" style="color:#ff4444" onclick="clr()">C</div><div class="key" onclick="press(0)">0</div><div class="key" style="color:#00ff00" onclick="submit()">OK</div>
+            </div>
+        </div>
+
+        <div id="maint-menu" style="display:none;">
+            <div id="user-info" style="font-size: 13px; color: #888; margin-bottom: 10px;"></div>
+            <div id="menu-status-banner" class="status-badge">SYNCING...</div>
+            <div id="arm-group">
+                <button class="menu-btn btn-arm" onclick="doAction('/api/arm', {mode:'away'})">ARM AWAY</button>
+                <button class="menu-btn btn-arm" onclick="doAction('/api/arm', {mode:'stay'})">ARM STAY</button>
+            </div>
+            <div id="disarm-group" style="display:none;">
+                <button class="menu-btn btn-disarm" onclick="doAction('/api/disarm', {})">DISARM SYSTEM</button>
+            </div>
+            <hr style="border:0; border-top:1px solid #444; margin: 20px 0;">
+            <div id="admin-links" style="display:none;">
+                <a href="zstatus.html" class="menu-btn btn-nav">📊 Zone Status</a>     
+                <a href="users.html" class="menu-btn btn-nav">👤 User Management</a>
+            </div>
+            <button class="menu-btn btn-nav" onclick="location.reload()">LOGOUT</button>
+        </div>
+    </div>
+
+    <script>
+        let pin = "";
+
+        function updateClock() {
+            const now = new Date();
+            // hour: 'numeric' removes the leading zero
+            document.getElementById('live-time').innerText = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', minute: '2-digit', hour12: true 
+            });
+            document.getElementById('live-date').innerText = now.toLocaleDateString('en-US', { 
+                weekday: 'long', month: 'short', day: 'numeric' 
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function press(n) { if(pin.length < 4) { pin += n; document.getElementById('pin-display').innerText = "*".repeat(pin.length); } }
+        function clr() { pin = ""; document.getElementById('pin-display').innerText = ""; }
+
+        async function submit() {
+            try {
+                const r = await fetch('/api/auth', { method: 'POST', body: JSON.stringify({pin}) });
+                const d = await r.json();
+                if(d.authenticated) {
+                    document.getElementById('auth-section').style.display = "none";
+                    document.getElementById('quick-status').style.display = "none";
+                    document.getElementById('maint-menu').style.display = "block";
+                    if(d.is_admin) document.getElementById('admin-links').style.display = "block";
+                    check();
+                } else { clr(); }
+            } catch(e) { console.error(e); }
+        }
+
+        function updateUI(cfg) {
+            const state = parseInt(cfg.state || 0);
+            const isReady = !!(cfg.ready);
+            const b1 = document.getElementById('quick-status');
+            const b2 = document.getElementById('menu-status-banner');
+            let txt = isReady ? "READY TO ARM" : "NOT READY TO ARM";
+            let cls = "status-badge " + (isReady ? "ready" : "not-ready");
+            if(state === 2) { txt = "ARMED"; cls = "status-badge armed"; }
+            if(state === 4) { txt = "ALARM"; cls = "status-badge armed"; }
+            [b1, b2].forEach(el => { if(el) { el.innerText = txt; el.className = cls; }});
+            document.getElementById('arm-group').style.display = (state === 0) ? "block" : "none";
+            document.getElementById('disarm-group').style.display = (state !== 0) ? "block" : "none";
+        }
+
+        async function check() {
+            try {
+                const r = await fetch('/api/status');
+                const d = await r.json();
+                if(d.config) updateUI(d.config);
+            } catch(e) { document.getElementById('quick-status').className = "status-badge offline"; }
+        }
+
+        async function doAction(url, body) {
+            if(url.includes('disarm')) body.pin = pin;
+            await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+            check();
+            setTimeout(() => location.reload(), 2000);
+        }
+
+        setInterval(check, 3000);
+        check();
+    </script>
+</body>
+</html>
