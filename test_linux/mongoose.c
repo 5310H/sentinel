@@ -7623,7 +7623,7 @@ MG_IRAM static bool flash_erase(struct mg_flexspi_nor_config *config,
 #if 0
 // standalone erase call
 MG_IRAM static bool mg_imxrt_erase(void *addr) {
-  struct mg_flexspi_nor_config config, *config_ptr = &config;
+  struct mg_flexspi_nor_config config, *config_ptr = storage_get_config();
   bool ret;
   // Interrupts must be disabled before calls to ROM API in RT1020 and 1060
   MG_ARM_DISABLE_IRQ();
@@ -7639,7 +7639,7 @@ MG_IRAM bool mg_imxrt_swap(void) {
 }
 
 MG_IRAM static bool mg_imxrt_write(void *addr, const void *buf, size_t len) {
-  struct mg_flexspi_nor_config config, *config_ptr = &config;
+  struct mg_flexspi_nor_config config, *config_ptr = storage_get_config();
   bool ok = false;
   // Interrupts must be disabled before calls to ROM API in RT1020 and 1060
   MG_ARM_DISABLE_IRQ();
@@ -7823,12 +7823,12 @@ MG_IRAM static bool flash_erase(struct mg_flash_config *config, void *addr) {
 MG_IRAM static bool mg_mcxn_erase(void *addr) {
   uint32_t status;
   struct mg_flash_config config;
-  if ((status = mg_flash_driver->init(&config)) != 0) {
+  if ((status = mg_flash_driver->initstorage_get_config()) != 0) {
     MG_ERROR(("Flash driver init error: %lu", status));
     return false;
   }
-  bool ok = flash_erase(&config, addr);
-  mg_flash_driver->deinit(&config);
+  bool ok = flash_erase(storage_get_config(), addr);
+  mg_flash_driver->deinitstorage_get_config();
   return ok;
 }
 #endif
@@ -7844,7 +7844,7 @@ MG_IRAM static bool mg_mcxn_write(void *addr, const void *buf, size_t len) {
   bool ok = false;
   uint32_t status;
   struct mg_flash_config config;
-  if ((status = mg_flash_driver->init(&config)) != 0) {
+  if ((status = mg_flash_driver->initstorage_get_config()) != 0) {
     MG_ERROR(("Flash driver init error: %lu", status));
     return false;
   }
@@ -7865,13 +7865,13 @@ MG_IRAM static bool mg_mcxn_write(void *addr, const void *buf, size_t len) {
 
   MG_ARM_DISABLE_IRQ();
   while (ok && src < end) {
-    if (flash_sector_start(dst) && flash_erase(&config, dst) == false) {
+    if (flash_sector_start(dst) && flash_erase(storage_get_config(), dst) == false) {
       ok = false;
       break;
     }
     uint32_t dst_ofs = (uint32_t) dst - (uint32_t) s_mg_flash_mcxn.start;
     // assume source is in RAM or in a different bank or read-while-write
-    status = mg_flash_driver->program(&config, dst_ofs, (uint8_t *) src,
+    status = mg_flash_driver->program(storage_get_config(), dst_ofs, (uint8_t *) src,
                                       s_mg_flash_mcxn.align);
     src = (uint32_t *) ((char *) src + s_mg_flash_mcxn.align);
     dst = (uint32_t *) ((char *) dst + s_mg_flash_mcxn.align);
@@ -7884,7 +7884,7 @@ MG_IRAM static bool mg_mcxn_write(void *addr, const void *buf, size_t len) {
   MG_DEBUG(("Flash write %lu bytes @ %p: %s.", len, dst, ok ? "ok" : "fail"));
 
 fwxit:
-  mg_flash_driver->deinit(&config);
+  mg_flash_driver->deinitstorage_get_config();
   return ok;
 }
 
@@ -7904,7 +7904,7 @@ MG_IRAM static void single_bank_swap(char *p1, char *p2, size_t s, size_t ss) {
 bool mg_ota_begin(size_t new_firmware_size) {
   uint32_t status;
   struct mg_flash_config config;
-  if ((status = mg_flash_driver->init(&config)) != 0) {
+  if ((status = mg_flash_driver->initstorage_get_config()) != 0) {
     MG_ERROR(("Flash driver init error: %lu", status));
     return false;
   }
@@ -7912,7 +7912,7 @@ bool mg_ota_begin(size_t new_firmware_size) {
   s_mg_flash_mcxn.size = config.size;
   s_mg_flash_mcxn.secsz = config.sector_size;
   s_mg_flash_mcxn.align = config.page_size;
-  mg_flash_driver->deinit(&config);
+  mg_flash_driver->deinitstorage_get_config();
   MG_DEBUG(
       ("%lu-byte flash @%p, using %lu-byte sectors with %lu-byte-aligned pages",
        s_mg_flash_mcxn.size, s_mg_flash_mcxn.start, s_mg_flash_mcxn.secsz,
@@ -8349,14 +8349,14 @@ MG_IRAM static int flash_init(void) {
   static bool initialized = false;
   if (!initialized) {
     struct mg_flexspi_nor_config config;
-    memset(&config, 0, sizeof(config));
+    memset(storage_get_config(), 0, sizeof(config));
     flexspi_nor->set_clock_source(0);
     flexspi_nor->config_clock(MG_FLEXSPI_NOR_INSTANCE, 1, 0);
     if (flexspi_nor->init(MG_FLEXSPI_NOR_INSTANCE, &default_config)) {
       return 1;
     }
-    flexspi_nor_get_config(&config);
-    if (flexspi_nor->init(MG_FLEXSPI_NOR_INSTANCE, &config)) {
+    flexspi_nor_get_configstorage_get_config();
+    if (flexspi_nor->init(MG_FLEXSPI_NOR_INSTANCE, storage_get_config())) {
       return 1;
     }
     initialized = true;
@@ -8394,7 +8394,7 @@ MG_IRAM static bool mg_frdm_write(void *addr, const void *buf, size_t len) {
   bool ok = false;
   MG_ARM_DISABLE_IRQ();
   if (flash_init() != 0) goto fwxit;
-  if (flexspi_nor_get_config(&config) != 0) goto fwxit;
+  if (flexspi_nor_get_configstorage_get_config() != 0) goto fwxit;
   if ((len % s_mg_flash_frdm.align) != 0) {
     MG_ERROR(("%lu is not aligned to %lu", len, s_mg_flash_frdm.align));
     goto fwxit;
@@ -8410,7 +8410,7 @@ MG_IRAM static bool mg_frdm_write(void *addr, const void *buf, size_t len) {
   ok = true;
 
   while (ok && src < end) {
-    if (flash_page_start(dst) && flash_erase(&config, dst) == false) {
+    if (flash_page_start(dst) && flash_erase(storage_get_config(), dst) == false) {
       ok = false;
       break;
     }
@@ -8428,10 +8428,10 @@ MG_IRAM static bool mg_frdm_write(void *addr, const void *buf, size_t len) {
         flash_wait();
         tmp[i] = src[i];
       }
-      status = flexspi_nor->page_program(MG_FLEXSPI_NOR_INSTANCE, &config,
+      status = flexspi_nor->page_program(MG_FLEXSPI_NOR_INSTANCE, storage_get_config(),
                                          (uint32_t) dst_ofs, tmp, false);
     } else {
-      status = flexspi_nor->page_program(MG_FLEXSPI_NOR_INSTANCE, &config,
+      status = flexspi_nor->page_program(MG_FLEXSPI_NOR_INSTANCE, storage_get_config(),
                                          (uint32_t) dst_ofs, src, false);
     }
     src = (uint32_t *) ((char *) src + s_mg_flash_frdm.align);

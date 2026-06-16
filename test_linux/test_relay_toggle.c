@@ -20,17 +20,17 @@ typedef struct {
 } esphome_device_t;
 
 // Mock arrays
-relay_t relays[32];
-int r_count = 0;
-esphome_device_t esphome_devices[8];
-int esphome_count = 0;
+relay_t storage_get_relay(32);
+int storage_get_relay_count() = 0;
+esphome_device_t storage_get_esphome_device(8);
+int storage_get_esphome_count() = 0;
 
 // Mock ESPHome API functions
 int esphome_api_find_entity_by_relay(int relay_id, char *hostname_out, size_t hostname_len, uint32_t *entity_key_out) {
-    for (int i = 0; i < esphome_count; i++) {
-        if (esphome_devices[i].virtual_relay_start == relay_id && esphome_devices[i].enabled) {
-            strcpy(hostname_out, esphome_devices[i].hostname);
-            *entity_key_out = esphome_devices[i].entity_key;
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        if (storage_get_esphome_device(i)->virtual_relay_start == relay_id && storage_get_esphome_device(i)->enabled) {
+            strcpy(hostname_out, storage_get_esphome_device(i)->hostname);
+            *entity_key_out = storage_get_esphome_device(i)->entity_key;
             return 0;
         }
     }
@@ -52,20 +52,20 @@ void test_relay_toggle(int relay_idx, int state_b) {
     int found = 0;
 
     // Check if index is valid
-    if (relay_idx >= 0 && relay_idx < r_count) {
-        if (relays[relay_idx].gpio == -1) {
+    if (relay_idx >= 0 && relay_idx < storage_get_relay_count()) {
+        if (storage_get_relay(relay_idx)->gpio == -1) {
             // Virtual relay - ESPHome
-            printf("[DEBUG] Virtual relay at index %d, id=%d\n", relay_idx, relays[relay_idx].id);
+            printf("[DEBUG] Virtual relay at index %d, id=%d\n", relay_idx, storage_get_relay(relay_idx)->id);
             
             // Find the ESPHome entity mapped to this relay
             char hostname[64];
             uint32_t entity_key;
-            if (esphome_api_find_entity_by_relay(relays[relay_idx].id, hostname, sizeof(hostname), &entity_key) == 0) {
+            if (esphome_api_find_entity_by_relay(storage_get_relay(relay_idx)->id, hostname, sizeof(hostname), &entity_key) == 0) {
                 printf("[ESPHome] Relay %d found on device %s, entity_key=%" PRIu32 "\n", 
-                    relays[relay_idx].id, hostname, entity_key);
+                    storage_get_relay(relay_idx)->id, hostname, entity_key);
                 
                 // Call ESPHome API
-                printf("[DEBUG] About to call esphome_api_set_switch for relay %d\n", relays[relay_idx].id);
+                printf("[DEBUG] About to call esphome_api_set_switch for relay %d\n", storage_get_relay(relay_idx)->id);
                 int result = esphome_api_set_switch(hostname, entity_key, state_b);
                 printf("[DEBUG] esphome_api_set_switch returned: %d\n", result);
                 
@@ -73,7 +73,7 @@ void test_relay_toggle(int relay_idx, int state_b) {
                     found = 1;
                 }
             } else {
-                printf("[DEBUG] No ESPHome entity mapped to relay %d\n", relays[relay_idx].id);
+                printf("[DEBUG] No ESPHome entity mapped to relay %d\n", storage_get_relay(relay_idx)->id);
             }
 
                     if (result == 0) {
@@ -85,7 +85,7 @@ void test_relay_toggle(int relay_idx, int state_b) {
             }
         } else {
             // Physical relay
-            printf("[Physical] Relay %d (%s) set to %s\n", relays[relay_idx].id, relays[relay_idx].name, state_b ? "ON" : "OFF");
+            printf("[Physical] Relay %d (%s) set to %s\n", storage_get_relay(relay_idx)->id, storage_get_relay(relay_idx)->name, state_b ? "ON" : "OFF");
             found = 1;
         }
     }
@@ -99,29 +99,29 @@ int main() {
     // Setup test data
     // Physical relays 0-7 (IDs 1-8)
     for (int i = 0; i < 8; i++) {
-        relays[i].id = i + 1;
-        relays[i].gpio = i;
-        sprintf(relays[i].name, "Physical Relay %d", i + 1);
+        storage_get_relay(i)->id = i + 1;
+        storage_get_relay(i)->gpio = i;
+        sprintf(storage_get_relay(i)->name, "Physical Relay %d", i + 1);
     }
-    r_count = 8;
+    storage_get_relay_count() = 8;
 
     // ESPHome relay at index 8 (ID 9)
-    relays[8].id = 9;
-    relays[8].gpio = -1;
-    strcpy(relays[8].name, "ESPHome Smart Plug");
-    r_count = 9;
+    storage_get_relay(8)->id = 9;
+    storage_get_relay(8)->gpio = -1;
+    strcpy(storage_get_relay(8)->name, "ESPHome Smart Plug");
+    storage_get_relay_count() = 9;
 
     // ESPHome device
-    strcpy(esphome_devices[0].hostname, "esphome-smart-plug.local");
-    esphome_devices[0].entity_key = 12345;
-    esphome_devices[0].virtual_relay_start = 9;
-    strcpy(esphome_devices[0].friendly_name, "Smart Plug");
-    esphome_devices[0].enabled = 1;
-    esphome_count = 1;
+    strcpy(storage_get_esphome_device(0)->hostname, "esphome-smart-plug.local");
+    storage_get_esphome_device(0)->entity_key = 12345;
+    storage_get_esphome_device(0)->virtual_relay_start = 9;
+    strcpy(storage_get_esphome_device(0)->friendly_name, "Smart Plug");
+    storage_get_esphome_device(0)->enabled = 1;
+    storage_get_esphome_count() = 1;
 
     printf("Relay Array:\n");
-    for (int i = 0; i < r_count; i++) {
-        printf("  [%d] ID=%d, GPIO=%d, Name='%s'\n", i, relays[i].id, relays[i].gpio, relays[i].name);
+    for (int i = 0; i < storage_get_relay_count(); i++) {
+        printf("  [%d] ID=%d, GPIO=%d, Name='%s'\n", i, storage_get_relay(i)->id, storage_get_relay(i)->gpio, storage_get_relay(i)->name);
     }
 
     // Test cases

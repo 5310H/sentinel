@@ -16,7 +16,6 @@ extern void __wrap_hal_set_relay(int relay, bool state);
 // --- External Global Variables ---
 extern struct mg_mgr mgr;
 extern bool g_network_up;
-extern config_t config; 
 extern int current_arm_state;
 extern int current_alarm_status;
 
@@ -28,7 +27,7 @@ void mqtt_publish_status(void);
 // --- Mongoose Event Handler ---
 static void mqtt_fn(struct mg_connection *c, int ev, void *ev_data) {
     if (ev == MG_EV_MQTT_OPEN) {
-        printf("[MQTT] Connected to %s:%d\n", config.mqtt_server, config.mqtt_port);
+        printf("[MQTT] Connected to %s:%d\n", storage_get_config()->mqtt_server, storage_get_config()->mqtt_port);
         
         // Publish Home Assistant discovery
         ha_mqtt_init();
@@ -91,13 +90,13 @@ void handle_received_command(struct mg_str topic, struct mg_str data) {
     if (strcmp(command, "DISARM") == 0) {
         if (code[0] != '\0') {
             bool authorized = false;
-            // Bounds checking: ensure i < u_count AND i < MAX_USERS
-            int max_users = (u_count < MAX_USERS) ? u_count : MAX_USERS;
+            // Bounds checking: ensure i < storage_get_user_count() AND i < MAX_USERS
+            int max_users = (storage_get_user_count() < MAX_USERS) ? storage_get_user_count() : MAX_USERS;
             for (int i = 0; i < max_users; i++) {
                 // Check for null/empty entries
-                if (users[i].pin[0] != '\0' && strcmp(code, users[i].pin) == 0) {
+                if (storage_get_user(i)->pin[0] != '\0' && strcmp(code, storage_get_user(i)->pin) == 0) {
                     authorized = true;
-                    printf("[SYSTEM] User %d (%s) authorized disarm.\n", i, users[i].name);
+                    printf("[SYSTEM] User %d (%s) authorized disarm.\n", i, storage_get_user(i)->name);
                     break;
                 }
             }
@@ -125,19 +124,19 @@ void start_sentinel_mqtt(void) {
     if (!g_network_up || s_conn != NULL) return;
 
     char clean_server[128];
-    if (sscanf(config.mqtt_server, "%127s", clean_server) != 1) return;
+    if (sscanf(storage_get_config()->mqtt_server, "%127s", clean_server) != 1) return;
 
     char full_url[256];
-    bool is_secure = (config.mqtt_port == 8883);
-    snprintf(full_url, sizeof(full_url), "%s://%s:%d", is_secure ? "mqtts" : "mqtt", clean_server, config.mqtt_port);
+    bool is_secure = (storage_get_config()->mqtt_port == 8883);
+    snprintf(full_url, sizeof(full_url), "%s://%s:%d", is_secure ? "mqtts" : "mqtt", clean_server, storage_get_config()->mqtt_port);
 
     struct mg_mqtt_opts opts = {
         .clean = true,
         .qos = 1,
         .topic = mg_str("sentinel/alarm/availability"),
         .message = mg_str("offline"),
-        .user = mg_str(config.mqtt_user),
-        .pass = mg_str(config.mqtt_pass),
+        .user = mg_str(storage_get_config()->mqtt_user),
+        .pass = mg_str(storage_get_config()->mqtt_pass),
         .keepalive = 60
     };
 

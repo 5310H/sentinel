@@ -44,9 +44,9 @@
  * @param z Zone that triggered alarm
  * 
  * @example
- * smtp_alert_all_contacts(&config, users, 5, &zones[0]);
+ * smtp_alert_all_contacts(storage_get_config(), storage_get_zone(0));
  */
-void smtp_alert_all_contacts(config_t *config, user_t *users, int user_count, zone_t *z);
+void smtp_alert_all_contacts(config_t *config, zone_t *z);
 
 /**
  * @brief Send system disarm confirmation email
@@ -62,9 +62,9 @@ void smtp_alert_all_contacts(config_t *config, user_t *users, int user_count, zo
  * @param user_count Number of users in array
  * 
  * @example
- * smtp_send_cancellation(&config, users, user_count);
+ * smtp_send_cancellation(storage_get_config());
  */
-void smtp_send_cancellation(config_t *config, user_t *users, int user_count);
+void smtp_send_cancellation(config_t *config);
 
 /**
  * @brief Send custom email message
@@ -82,7 +82,7 @@ void smtp_send_cancellation(config_t *config, user_t *users, int user_count);
  * @param body Email body (plain text or HTML)
  * 
  * @example
- * smtp_send_email(&config, "System Started", "Sentinel alarm initialized successfully");
+ * smtp_send_email(storage_get_config(), "System Started", "Sentinel alarm initialized successfully");
  */
 void smtp_send_email(config_t *config, const char *subject, const char *body);
 

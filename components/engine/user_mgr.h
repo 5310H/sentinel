@@ -46,7 +46,7 @@ char *users_to_json(void);
  * Updates user count and persists to storage.
  * 
  * @param users User array (assumes MAX_USERS size)
- * @param u_count Pointer to user count (incremented on success)
+ * @param storage_get_user_count() Pointer to user count (incremented on success)
  * @param name Username (max 32 chars, e.g., "John Smith")
  * @param pin Numeric PIN (4-8 digits recommended)
  * @param phone Phone number for SMS (optional, can be "")
@@ -58,7 +58,7 @@ char *users_to_json(void);
  * user_add(users, &user_count, "Alice", "1234", "555-1234", "alice@example.com", 2, true);
  * storage_save_users(users_to_json());
  */
-void user_add(user_t *users, int *u_count, const char *name, const char *pin, 
+void user_add(const char *name, const char *pin, 
               const char *phone, const char *email, int notify, bool is_admin, const char *emergency_pin);
 
 /**
@@ -70,7 +70,7 @@ void user_add(user_t *users, int *u_count, const char *name, const char *pin,
  * @param totp_secret Base32-encoded TOTP secret (or NULL/empty to clear)
  * @return true if user found and updated, false otherwise
  */
-bool user_set_totp_secret(user_t *users, int count, const char *name, const char *totp_secret);
+bool user_set_totp_secret(const char *name, const char *totp_secret);
 
 
 /**
@@ -81,7 +81,7 @@ bool user_set_totp_secret(user_t *users, int count, const char *name, const char
  * Master user (index 0) can only be updated by itself.
  * 
  * @param users User array
- * @param u_count User count
+ * @param storage_get_user_count() User count
  * @param name Username to find and update
  * @param new_pin New PIN (optional, "" to keep current)
  * @param new_phone New phone number (optional)
@@ -93,7 +93,7 @@ bool user_set_totp_secret(user_t *users, int count, const char *name, const char
  * user_update(users, user_count, "Alice", "", "555-5678", "newemail@example.com", 2, false);
  * storage_save_users(users_to_json());
  */
-void user_update(user_t *users, int u_count, const char *name, const char *new_pin, 
+void user_update(const char *name, const char *new_pin, 
                  const char *new_phone, const char *new_email, int new_notify, int new_is_admin, const char *new_emergency_pin);
 
 /**
@@ -104,14 +104,14 @@ void user_update(user_t *users, int u_count, const char *name, const char *new_p
  * Cannot delete master user (index 0).
  * 
  * @param users User array
- * @param u_count Pointer to user count (decremented on success)
+ * @param storage_get_user_count() Pointer to user count (decremented on success)
  * @param name Username to delete
  * 
  * @example
  * user_drop(users, &user_count, "Alice");
  * storage_save_users(users_to_json());
  */
-void user_drop(user_t *users, int *u_count, const char *name);
+void user_drop(const char *name);
 
 /**
  * @brief Display all users to console/log
@@ -127,7 +127,7 @@ void user_drop(user_t *users, int *u_count, const char *name);
  * Useful for debugging and verification.
  * 
  * @param users User array
- * @param u_count Number of users
+ * @param storage_get_user_count() Number of users
  * 
  * @example
  * user_list(users, user_count);
@@ -136,6 +136,6 @@ void user_drop(user_t *users, int *u_count, const char *name);
  * // 0     | Master    | 555-0000 | admin@home.com  | 2      | Y
  * // 1     | Alice     | 555-1234 | alice@home.com  | 2      | N
  */
-void user_list(user_t *users, int u_count);
+void user_list(void);
 
 #endif

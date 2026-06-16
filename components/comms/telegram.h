@@ -37,7 +37,7 @@
  * @param z Zone that triggered the alarm
  * 
  * @example
- * telegram_send_alert(&config, &zones[0]);  // Alert for first zone
+ * telegram_send_alert(storage_get_config(), storage_get_zone(0));  // Alert for first zone
  */
 void telegram_send_alert(config_t *conf, zone_t *z);
 
@@ -55,7 +55,7 @@ void telegram_send_alert(config_t *conf, zone_t *z);
  * @param conf Configuration with telegram_bot_token and telegram_chat_id
  * 
  * @example
- * telegram_send_cancellation(&config);
+ * telegram_send_cancellationstorage_get_config();
  */
 void telegram_send_cancellation(config_t *conf);
 

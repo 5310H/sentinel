@@ -46,17 +46,6 @@
 #include "scheduler.h"   // Task scheduler for automation and scheduling
 
 // USE EXTERN: Do not re-define them here
-extern config_t config;
-extern user_t users[];
-extern int u_count;
-extern zone_t zones[];
-extern int z_count;
-extern relay_t relays[];
-extern int r_count;
-extern esphome_device_t esphome_devices[];
-extern int esphome_count;
-
-// Embedded version information
 extern const char version_txt_start[] asm("_binary_version_txt_start");
 extern const char version_txt_end[] asm("_binary_version_txt_end");
 
@@ -155,13 +144,13 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             get_json_str(hm->body, "$.email", email, sizeof(email));
             get_json_str(hm->body, "$.notify", n_buf, sizeof(n_buf));
             get_json_str(hm->body, "$.emergency_pin", emergency_pin, sizeof(emergency_pin));
-            user_add(users, &u_count, name, pin, "", email, atoi(n_buf), false, emergency_pin); 
+            user_add(name, pin, "", email, atoi(n_buf), false, emergency_pin); 
             mg_http_reply(c, 200, "Content-Type: application/json\r\n", "{\"status\":\"ok\"}");
         }
         else if (mg_strcmp(hm->uri, mg_str("/api/users/delete")) == 0) {
             char name[STR_SMALL] = {0};
             get_json_str(hm->body, "$.name", name, sizeof(name));
-            user_drop(users, &u_count, name);
+            user_drop(name);
             mg_http_reply(c, 200, "Content-Type: application/json\r\n", "{\"status\":\"ok\"}");
         }
         else if (mg_strcmp(hm->uri, mg_str("/api/users/set-totp")) == 0) {
@@ -171,7 +160,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             get_json_str(hm->body, "$.totp_secret", totp_secret, sizeof(totp_secret));
             
             if (strlen(name) > 0) {
-                bool success = user_set_totp_secret(users, u_count, name, totp_secret);
+                bool success = user_set_totp_secret(users, storage_get_user_count(), name, totp_secret);
                 if (success) {
                     mg_http_reply(c, 200, "Content-Type: application/json\r\n", "{\"status\":\"ok\"}");
                 } else {
@@ -191,9 +180,9 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             if (strlen(name) > 0 && strlen(totp_secret) > 0) {
                 // Find user email
                 const char* user_email = NULL;
-                for (int i = 0; i < u_count; i++) {
-                    if (strcmp(users[i].name, name) == 0) {
-                        user_email = users[i].email;
+                for (int i = 0; i < storage_get_user_count(); i++) {
+                    if (strcmp(storage_get_user(i)->name, name) == 0) {
+                        user_email = storage_get_user(i)->email;
                         break;
                     }
                 }
@@ -208,7 +197,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
                         "Account: %s\n"
                         "User: %s\n\n"
                         "If you did not request this, please ignore this email.",
-                        totp_secret, config.account_id, name);
+                        totp_secret, storage_get_config()->account_id, name);
                     
                     // Send email via SMTP
                     mg_http_reply(c, 200, "Content-Type: application/json\r\n", 
@@ -350,10 +339,10 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             // For now, return mock success for devices in config
             bool found = false;
             char device_name[STR_SMALL] = {0};
-            for (int i = 0; i < esphome_count; i++) {
-                if (strcmp(esphome_devices[i].hostname, host) == 0) {
+            for (int i = 0; i < storage_get_esphome_count(); i++) {
+                if (strcmp(storage_get_esphome_device(i)->hostname, host) == 0) {
                     found = true;
-                    strncpy(device_name, esphome_devices[i].friendly_name, STR_SMALL - 1);
+                    strncpy(device_name, storage_get_esphome_device(i)->friendly_name, STR_SMALL - 1);
                     device_name[STR_SMALL - 1] = '\0';
                     break;
                 }
@@ -381,9 +370,9 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             // TODO: Check actual connection status via esphome API
             // For now, return enabled status from config
             bool connected = false;
-            for (int i = 0; i < esphome_count; i++) {
-                if (strcmp(esphome_devices[i].hostname, host) == 0) {
-                    connected = esphome_devices[i].enabled;
+            for (int i = 0; i < storage_get_esphome_count(); i++) {
+                if (strcmp(storage_get_esphome_device(i)->hostname, host) == 0) {
+                    connected = storage_get_esphome_device(i)->enabled;
                     break;
                 }
             }
@@ -518,9 +507,9 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             // Config Object
             cJSON *cfg = cJSON_CreateObject();
             cJSON_AddItemToObject(root, "config", cfg);
-            cJSON_AddStringToObject(cfg, "acct_id", config.account_id);
-            cJSON_AddStringToObject(cfg, "name", config.name);
-            cJSON_AddStringToObject(cfg, "email", config.email);
+            cJSON_AddStringToObject(cfg, "acct_id", storage_get_config()->account_id);
+            cJSON_AddStringToObject(cfg, "name", storage_get_config()->name);
+            cJSON_AddStringToObject(cfg, "email", storage_get_config()->email);
             cJSON_AddNumberToObject(cfg, "state", engine_get_arm_state());
             cJSON_AddBoolToObject(cfg, "ready", is_ready());
             cJSON_AddStringToObject(cfg, "violation", engine_get_violation_name());
@@ -558,15 +547,15 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             cJSON_AddItemToObject(root, "zones", z_arr);
             
             // Physical zones (1-32)
-            for (int i = 0; i < z_count; i++) {
-                if (zones[i].gpio >= 0) {  // Only physical zones with GPIO
+            for (int i = 0; i < storage_get_zone_count(); i++) {
+                if (storage_get_zone(i)->gpio >= 0) {  // Only physical zones with GPIO
                     cJSON *z = cJSON_CreateObject();
-                    cJSON_AddNumberToObject(z, "id", zones[i].id);
-                    cJSON_AddStringToObject(z, "name", zones[i].name);
-                    cJSON_AddStringToObject(z, "description", zones[i].description);
-                    cJSON_AddStringToObject(z, "location", zones[i].location);
+                    cJSON_AddNumberToObject(z, "id", storage_get_zone(i)->id);
+                    cJSON_AddStringToObject(z, "name", storage_get_zone(i)->name);
+                    cJSON_AddStringToObject(z, "description", storage_get_zone(i)->description);
+                    cJSON_AddStringToObject(z, "location", storage_get_zone(i)->location);
                     // In HAL, 0 usually means triggered/open for NC sensors
-                    bool is_open = (hal_get_zone_state(zones[i].gpio) == 0);
+                    bool is_open = (hal_get_zone_state(storage_get_zone(i)->gpio) == 0);
                     cJSON_AddBoolToObject(z, "open", is_open);
                     cJSON_AddBoolToObject(z, "violated", is_open);
                     cJSON_AddItemToArray(z_arr, z);
@@ -574,13 +563,13 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             }
             
             // ESPHome virtual zones (33-64)
-            for (int i = 0; i < esphome_count; i++) {
-                if (esphome_devices[i].virtual_zone_start > 0 && esphome_devices[i].enabled) {
+            for (int i = 0; i < storage_get_esphome_count(); i++) {
+                if (storage_get_esphome_device(i)->virtual_zone_start > 0 && storage_get_esphome_device(i)->enabled) {
                     cJSON *z = cJSON_CreateObject();
-                    cJSON_AddNumberToObject(z, "id", esphome_devices[i].virtual_zone_start);
-                    cJSON_AddStringToObject(z, "name", esphome_devices[i].friendly_name);
-                    cJSON_AddStringToObject(z, "description", esphome_devices[i].description[0] != '\0' ? esphome_devices[i].description : esphome_devices[i].friendly_name);
-                    cJSON_AddStringToObject(z, "location", esphome_devices[i].location);
+                    cJSON_AddNumberToObject(z, "id", storage_get_esphome_device(i)->virtual_zone_start);
+                    cJSON_AddStringToObject(z, "name", storage_get_esphome_device(i)->friendly_name);
+                    cJSON_AddStringToObject(z, "description", storage_get_esphome_device(i)->description[0] != '\0' ? storage_get_esphome_device(i)->description : storage_get_esphome_device(i)->friendly_name);
+                    cJSON_AddStringToObject(z, "location", storage_get_esphome_device(i)->location);
                     cJSON_AddBoolToObject(z, "open", false);
                     cJSON_AddBoolToObject(z, "violated", false);
                     cJSON_AddItemToArray(z_arr, z);
@@ -616,24 +605,24 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             cJSON_AddItemToObject(root, "relays", r_arr);
             
             // Physical relays (1-8)
-            for (int i = 0; i < r_count; i++) {
-                if (relays[i].id <= 8) {  // Only physical relays
+            for (int i = 0; i < storage_get_relay_count(); i++) {
+                if (storage_get_relay(i)->id <= 8) {  // Only physical relays
                     cJSON *r = cJSON_CreateObject();
-                    cJSON_AddNumberToObject(r, "id", relays[i].id);
-                    cJSON_AddStringToObject(r, "name", relays[i].name);
-                    cJSON_AddStringToObject(r, "location", relays[i].location);
-                    cJSON_AddBoolToObject(r, "active", hal_get_relay_state(relays[i].gpio));
+                    cJSON_AddNumberToObject(r, "id", storage_get_relay(i)->id);
+                    cJSON_AddStringToObject(r, "name", storage_get_relay(i)->name);
+                    cJSON_AddStringToObject(r, "location", storage_get_relay(i)->location);
+                    cJSON_AddBoolToObject(r, "active", hal_get_relay_state(storage_get_relay(i)->gpio));
                     cJSON_AddItemToArray(r_arr, r);
                 }
             }
             
             // ESPHome virtual relays (8-31)
-            for (int i = 0; i < esphome_count; i++) {
-                if (esphome_devices[i].virtual_relay_start > 0 && esphome_devices[i].enabled) {
+            for (int i = 0; i < storage_get_esphome_count(); i++) {
+                if (storage_get_esphome_device(i)->virtual_relay_start > 0 && storage_get_esphome_device(i)->enabled) {
                     cJSON *r = cJSON_CreateObject();
-                    cJSON_AddNumberToObject(r, "id", esphome_devices[i].virtual_relay_start);
-                    cJSON_AddStringToObject(r, "name", esphome_devices[i].friendly_name);
-                    cJSON_AddStringToObject(r, "location", esphome_devices[i].location);
+                    cJSON_AddNumberToObject(r, "id", storage_get_esphome_device(i)->virtual_relay_start);
+                    cJSON_AddStringToObject(r, "name", storage_get_esphome_device(i)->friendly_name);
+                    cJSON_AddStringToObject(r, "location", storage_get_esphome_device(i)->location);
                     cJSON_AddBoolToObject(r, "active", false);
                     cJSON_AddItemToArray(r_arr, r);
                 }
@@ -781,11 +770,11 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
         // API: Zones (for zstatus.html)
         if (mg_strcmp(hm->uri, mg_str("/api/zones")) == 0) {
             cJSON *z_arr = cJSON_CreateArray();
-            for (int i = 0; i < z_count; i++) {
+            for (int i = 0; i < storage_get_zone_count(); i++) {
                 cJSON *z = cJSON_CreateObject();
-                cJSON_AddStringToObject(z, "name", zones[i].name);
+                cJSON_AddStringToObject(z, "name", storage_get_zone(i)->name);
                 cJSON_AddStringToObject(z, "location", "");
-                cJSON_AddBoolToObject(z, "open", hal_get_zone_state(zones[i].gpio) == 0);
+                cJSON_AddBoolToObject(z, "open", hal_get_zone_state(storage_get_zone(i)->gpio) == 0);
                 cJSON_AddItemToArray(z_arr, z);
             }
             char *json_str = cJSON_PrintUnformatted(z_arr);
@@ -916,12 +905,12 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             bool authenticated = false;
             if (strlen(pin_in) > 0) {
                 // Check master PIN
-                if (strcmp(pin_in, config.pin) == 0) {
+                if (strcmp(pin_in, storage_get_config()->pin) == 0) {
                     authenticated = true;
                 } else {
                     // Check user PINs (admin-level users only)
-                    for (int i = 0; i < u_count; i++) {
-                        if (strcmp(users[i].pin, pin_in) == 0) {
+                    for (int i = 0; i < storage_get_user_count(); i++) {
+                        if (strcmp(storage_get_user(i)->pin, pin_in) == 0) {
                             authenticated = true;
                             break;
                         }
@@ -1102,10 +1091,10 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             bool found = false;
             
             // Check physical relays
-            for (int i = 0; i < r_count && !found; i++) {
+            for (int i = 0; i < storage_get_relay_count() && !found; i++) {
                 if (current_idx == relay_idx) {
-                    hal_set_relay(relays[i].gpio, state_b);
-                    ESP_LOGI(TAG, "Physical relay %d (%s) set to %s", relays[i].id, relays[i].name, state_b ? "ON" : "OFF");
+                    hal_set_relay(storage_get_relay(i)->gpio, state_b);
+                    ESP_LOGI(TAG, "Physical relay %d (%s) set to %s", storage_get_relay(i)->id, storage_get_relay(i)->name, state_b ? "ON" : "OFF");
                     found = true;
                     break;
                 }
@@ -1114,12 +1103,12 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
             
             // Check ESPHome relays
             if (!found) {
-                for (int i = 0; i < esphome_count && !found; i++) {
-                    if (esphome_devices[i].virtual_relay_start > 0 && esphome_devices[i].enabled) {
+                for (int i = 0; i < storage_get_esphome_count() && !found; i++) {
+                    if (storage_get_esphome_device(i)->virtual_relay_start > 0 && storage_get_esphome_device(i)->enabled) {
                         if (current_idx == relay_idx) {
                             ESP_LOGI(TAG, "ESPHome relay %d (%s) set to %s", 
-                                esphome_devices[i].virtual_relay_start, 
-                                esphome_devices[i].friendly_name, 
+                                storage_get_esphome_device(i)->virtual_relay_start, 
+                                storage_get_esphome_device(i)->friendly_name, 
                                 state_b ? "ON" : "OFF");
                             // TODO: Call ESPHome API to toggle switch
                             found = true;

@@ -4,12 +4,6 @@
 #include "storage_mgr.h"
 
 // Externs for configuration arrays defined in storage_mgr.c/main.c
-extern zone_t zones[];
-extern int z_count;
-extern relay_t relays[];
-extern int r_count;
-
-// Default pins for Siren/Strobe if not dynamically configured
 #ifndef GPIO_SIREN
 #define GPIO_SIREN 25
 #endif
@@ -25,9 +19,9 @@ void hal_esp32_init(void) {
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 1; // Default to pull-up for NC sensors
 
-    for (int i = 0; i < z_count; i++) {
-        if (zones[i].gpio >= 0) {
-            io_conf.pin_bit_mask = (1ULL << zones[i].gpio);
+    for (int i = 0; i < storage_get_zone_count(); i++) {
+        if (storage_get_zone(i)->gpio >= 0) {
+            io_conf.pin_bit_mask = (1ULL << storage_get_zone(i)->gpio);
             gpio_config(&io_conf);
         }
     }
@@ -38,11 +32,11 @@ void hal_esp32_init(void) {
     io_conf.pull_down_en = 0;
     io_conf.pull_up_en = 0;
 
-    for (int i = 0; i < r_count; i++) {
-        if (relays[i].gpio >= 0) {
-            io_conf.pin_bit_mask = (1ULL << relays[i].gpio);
+    for (int i = 0; i < storage_get_relay_count(); i++) {
+        if (storage_get_relay(i)->gpio >= 0) {
+            io_conf.pin_bit_mask = (1ULL << storage_get_relay(i)->gpio);
             gpio_config(&io_conf);
-            gpio_set_level(relays[i].gpio, 0); // Default OFF
+            gpio_set_level(storage_get_relay(i)->gpio, 0); // Default OFF
         }
     }
 

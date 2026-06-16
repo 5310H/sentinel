@@ -154,11 +154,11 @@ static int _publish_power_discovery(void) {
  * @brief Publish Home Assistant discovery messages for relays
  */
 static int _publish_relays_discovery(void) {
-    for (int i = 0; i < r_count && i < 8; i++) {
+    for (int i = 0; i < storage_get_relay_count() && i < 8; i++) {
         cJSON *config = cJSON_CreateObject();
         
         char name[64];
-        snprintf(name, sizeof(name), "Sentinel %.50s", relays[i].name);
+        snprintf(name, sizeof(name), "Sentinel %.50s", storage_get_relay(i)->name);
         cJSON_AddStringToObject(config, "name", name);
         
         char unique_id[64];
@@ -233,18 +233,18 @@ int ha_mqtt_publish_state(void) {
     _mqtt_pub("sentinel/power", status.on_backup_power ? "backup" : "normal");
     
     // Publish relay states
-    for (int i = 0; i < r_count && i < 8; i++) {
+    for (int i = 0; i < storage_get_relay_count() && i < 8; i++) {
         char topic[64];
         snprintf(topic, sizeof(topic), "sentinel/relay/%d/state", i);
-        int relay_state = hal_get_relay_state(relays[i].gpio);
+        int relay_state = hal_get_relay_state(storage_get_relay(i)->gpio);
         _mqtt_pub(topic, relay_state ? "ON" : "OFF");
     }
     
     // Publish zone states
-    for (int i = 0; i < z_count && i < 16; i++) {
+    for (int i = 0; i < storage_get_zone_count() && i < 16; i++) {
         char topic[64];
         snprintf(topic, sizeof(topic), "sentinel/zone/%d/state", i);
-        int zone_state = hal_get_zone_state(zones[i].gpio);
+        int zone_state = hal_get_zone_state(storage_get_zone(i)->gpio);
         _mqtt_pub(topic, zone_state ? "SECURE" : "OPEN");
     }
     
@@ -257,7 +257,7 @@ int ha_mqtt_publish_arm_state(const char *state_str) {
 }
 
 int ha_mqtt_publish_relay_state(uint8_t relay_index, bool state) {
-    if (relay_index >= r_count || relay_index >= 8) return -1;
+    if (relay_index >= storage_get_relay_count() || relay_index >= 8) return -1;
     
     char topic[64];
     snprintf(topic, sizeof(topic), "sentinel/relay/%d/state", relay_index);
@@ -279,7 +279,7 @@ int ha_mqtt_publish_power(bool on_backup) {
 }
 
 int ha_mqtt_publish_zone_state(uint8_t zone_index, bool open) {
-    if (zone_index >= z_count || zone_index >= 16) return -1;
+    if (zone_index >= storage_get_zone_count() || zone_index >= 16) return -1;
     
     char topic[64];
     snprintf(topic, sizeof(topic), "sentinel/zone/%d/state", zone_index);
@@ -320,9 +320,9 @@ int ha_mqtt_handle_command(const char *topic, const uint8_t *payload, uint32_t p
         int relay_idx = -1;
         sscanf(topic, "sentinel/relay/%d/command", &relay_idx);
         
-        if (relay_idx >= 0 && relay_idx < r_count) {
+        if (relay_idx >= 0 && relay_idx < storage_get_relay_count()) {
             bool on = strcmp(payload_str, "ON") == 0;
-            hal_set_relay(relays[relay_idx].gpio, on);
+            hal_set_relay(storage_get_relay(relay_idx)->gpio, on);
             ha_mqtt_publish_relay_state(relay_idx, on);
             return 0;
         }

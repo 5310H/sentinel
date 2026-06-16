@@ -16,17 +16,14 @@
 extern bool mock_esphome_relay_states[24];
 
 // Use the actual loaded devices from storage_mgr
-extern esphome_device_t esphome_devices[];
-extern int esphome_count;
-
 /**
  * @brief Initialize mock ESPHome devices (uses actual loaded config)
  */
 void mock_esphome_init(void) {
-    printf("[MOCK] Initializing %d ESPHome devices\n", esphome_count);
+    printf("[MOCK] Initializing %d ESPHome devices\n", storage_get_esphome_count());
     
-    for (int i = 0; i < esphome_count; i++) {
-        esphome_device_t *dev = &esphome_devices[i];
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        esphome_device_t *dev = storage_get_esphome_device(i);
         printf("[MOCK] Device %d: %s (%s:%d)\n", i + 1, dev->friendly_name, dev->hostname, dev->port);
         printf("       Description: %s\n", dev->description);
         printf("       Location: %s\n", dev->location);
@@ -45,8 +42,8 @@ void mock_esphome_init(void) {
  * @brief Trigger a sensor state change (for testing) - searches by hostname or friendly name
  */
 void mock_esphome_trigger_sensor(const char *entity_id, bool state) {
-    for (int i = 0; i < esphome_count; i++) {
-        esphome_device_t *dev = &esphome_devices[i];
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        esphome_device_t *dev = storage_get_esphome_device(i);
         
         // Match by hostname (without .local) or friendly_name
         char hostname_short[STR_SMALL];
@@ -80,8 +77,8 @@ void mock_esphome_trigger_sensor(const char *entity_id, bool state) {
  * @brief Set a switch state (for testing) - searches by hostname or friendly name
  */
 void mock_esphome_set_switch(const char *entity_id, bool state) {
-    for (int i = 0; i < esphome_count; i++) {
-        esphome_device_t *dev = &esphome_devices[i];
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        esphome_device_t *dev = storage_get_esphome_device(i);
         
         // Match by hostname (without .local) or friendly_name
         char hostname_short[STR_SMALL];
@@ -116,13 +113,13 @@ void mock_esphome_set_switch(const char *entity_id, bool state) {
 void mock_esphome_list_devices(void) {
     printf("\n=== ESPHome Devices (from esphome.json) ===\n");
     
-    if (esphome_count == 0) {
+    if (storage_get_esphome_count() == 0) {
         printf("No ESPHome devices configured.\n\n");
         return;
     }
     
-    for (int i = 0; i < esphome_count; i++) {
-        esphome_device_t *dev = &esphome_devices[i];
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        esphome_device_t *dev = storage_get_esphome_device(i);
         
         printf("\nDevice %d:\n", i + 1);
         printf("  Hostname: %s:%d\n", dev->hostname, dev->port);
@@ -156,10 +153,10 @@ char* mock_esphome_get_json(void) {
     int offset = 0;
     
     offset += snprintf(json_buffer + offset, sizeof(json_buffer) - offset,
-                      "{\"count\":%d,\"devices\":[", esphome_count);
+                      "{\"count\":%d,\"devices\":[", storage_get_esphome_count());
     
-    for (int i = 0; i < esphome_count; i++) {
-        esphome_device_t *dev = &esphome_devices[i];
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        esphome_device_t *dev = storage_get_esphome_device(i);
         
         if (i > 0) {
             offset += snprintf(json_buffer + offset, sizeof(json_buffer) - offset, ",");

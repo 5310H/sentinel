@@ -509,7 +509,7 @@
         }
         setInterval(updateClock, 1000); updateClock();
 
-        function press(n) { if (currentPin.length < 6) { currentPin += n; document.getElementById('pin-display').innerText = "*".repeat(currentPin.length); } }
+        function press(n) { if (currentPin.length < 15) { currentPin += n; document.getElementById('pin-display').innerText = "*".repeat(currentPin.length); } }
         function clr() { currentPin = ""; document.getElementById('pin-display').innerText = ""; }
 
         // Generate random Base32 secret (16 chars = 80 bits)

@@ -13,15 +13,15 @@ ENGINE_DIR   = $(COMP_BASE)/engine
 HAL_DIR      = $(COMP_BASE)/hardware
 SECURITY_DIR = $(COMP_BASE)/security
 CAMERA_DIR   = $(COMP_BASE)/camera
-ESPHOME_API_DIR = $(COMP_BASE)/esphome_api
-NANOPB_DIR = ../nanopb
-GENERATED_PROTO_DIR = ../generated_proto
-NOISE_DIR = ../noise-c
+# --- ESPHome API Components ---
+ESPHOME_API_DIR = ../components/esphome_api
+ESPHOME_C_API_DIR = ../components/esphome-c-api
+NOISE_DIR = ../components/noise-c
 
 # --- INCLUDES ---
 INCLUDES = -I$(STORAGE_DIR) -I$(COMMS_DIR) -I$(MONGOOSE_DIR) \
            -I$(HAL_DIR) -I$(MQTT_APP_DIR) -I$(ENGINE_DIR) -I$(SECURITY_DIR) -I$(CAMERA_DIR) -I$(ESPHOME_API_DIR) \
-           -I$(NANOPB_DIR) -I$(GENERATED_PROTO_DIR) -I$(NOISE_DIR)/include -I$(NOISE_DIR)/src/protocol -I.
+           -I$(ESPHOME_C_API_DIR)/include -I$(ESPHOME_C_API_DIR)/src/proto -I$(ESPHOME_C_API_DIR)/src -I$(NOISE_DIR)/include -I$(NOISE_DIR)/src/protocol -I.
 
 # --- COMPILER FLAGS (Native Linux build, NOT ESP-IDF) ---
 CFLAGS = $(CFLAGS_BASE) $(INCLUDES) \
@@ -29,12 +29,11 @@ CFLAGS = $(CFLAGS_BASE) $(INCLUDES) \
          -DMG_ENABLE_HTTP=1 \
          -DMG_ENABLE_TLS=1 \
          -DMG_ENABLE_OPENSSL=1 \
-         -DMG_TLS=MG_TLS_OPENSSL \
-         -DUSE_LIBSODIUM=1
+         -DMG_TLS=MG_TLS_OPENSSL
 
 # --- LINKER FLAGS (Order matters on Ubuntu!) ---
 # --no-as-needed forces the inclusion of SSL symbols we saw in nm
-LIBS = -Wl,--no-as-needed -lssl -lcrypto -lcurl -lcjson -lpthread -lm -lsodium
+LIBS = -Wl,--no-as-needed -lssl -lcrypto -lcurl -lcjson -lpthread -lm -L$(NOISE_DIR)/src/protocol -lnoiseprotocol
 
 # --- HARDWARE WRAPPERS ---
 WRAPS = -Wl,--wrap=hal_get_zone_state \
@@ -54,24 +53,29 @@ OBJ = $(STORAGE_DIR)/storage_mgr.o \
       $(ENGINE_DIR)/otp.o \
       $(MONGOOSE_DIR)/mongoose.o \
       $(MQTT_APP_DIR)/mqtt_logic.o \
-      $(ENGINE_DIR)/smtp.o \
+      $(COMMS_DIR)/smtp.o \
       $(ENGINE_DIR)/user_mgr.o \
       $(ENGINE_DIR)/logging.o \
       $(ENGINE_DIR)/engine.o \
       $(ESPHOME_API_DIR)/esphome_api_client.o \
-      $(ESPHOME_API_DIR)/esphome_api_protocol.o \
       $(ESPHOME_API_DIR)/esphome_zones.o \
+      $(ESPHOME_C_API_DIR)/src/api/esphome_api.o \
+      $(ESPHOME_C_API_DIR)/src/api/frame.o \
+      $(ESPHOME_C_API_DIR)/src/api/proto_helpers.o \
+      $(ESPHOME_C_API_DIR)/src/noise/noise.o \
+      $(ESPHOME_C_API_DIR)/src/proto/api.pb.o \
+      $(ESPHOME_C_API_DIR)/src/proto/api_options.pb.o \
+      $(ESPHOME_C_API_DIR)/src/proto/pb_common.o \
+      $(ESPHOME_C_API_DIR)/src/proto/pb_decode.o \
+      $(ESPHOME_C_API_DIR)/src/proto/pb_encode.o \
+      $(ESPHOME_C_API_DIR)/src/protobuf/messages.o \
+      $(ESPHOME_C_API_DIR)/src/transport/transport.o \
       ../components/tuya/tuya_zones.o \
       $(ENGINE_DIR)/monitor.o \
       $(ENGINE_DIR)/system_monitoring.o \
-      $(SECURITY_DIR)/password_hash.o \
       $(SECURITY_DIR)/session_mgr.o \
       $(SECURITY_DIR)/audit_log.o \
       $(CAMERA_DIR)/camera_zones.o \
-      $(NANOPB_DIR)/pb_common.o \
-      $(NANOPB_DIR)/pb_decode.o \
-      $(NANOPB_DIR)/pb_encode.o \
-      $(GENERATED_PROTO_DIR)/api.pb.o \
       matter_mock.o \
       esphome_mock.o \
       camera_mock.o \

@@ -97,22 +97,22 @@ void init_ethernet_v3(void) {
 }
 
 void init_network_hardware(esp_netif_t *netif) { // Ensure netif is passed in or defined
-    if (net_cfg.use_dhcp) {
+    if (storage_get_network()->use_dhcp) {
         ESP_LOGI("NET", "Starting DHCP mode...");
     } else {
-        ESP_LOGI("NET", "Setting Static IP: %s", net_cfg.ip);
+        ESP_LOGI("NET", "Setting Static IP: %s", storage_get_network()->ip);
         #ifdef ESP_PLATFORM
             esp_netif_ip_info_t info;
             // Stop DHCP client before setting static IP
             esp_netif_dhcpc_stop(netif); 
             
-            info.ip.addr = ipaddr_addr(net_cfg.ip);
-            info.gw.addr = ipaddr_addr(net_cfg.gateway);
-            info.netmask.addr = ipaddr_addr(net_cfg.netmask);
+            info.ip.addr = ipaddr_addr(storage_get_network()->ip);
+            info.gw.addr = ipaddr_addr(storage_get_network()->gateway);
+            info.netmask.addr = ipaddr_addr(storage_get_network()->netmask);
             
             esp_netif_set_ip_info(netif, &info);
         #else
-            printf("[MOCK] Simulation: Network would be set to %s\n", net_cfg.ip);
+            printf("[MOCK] Simulation: Network would be set to %s\n", storage_get_network()->ip);
         #endif
     }
 }

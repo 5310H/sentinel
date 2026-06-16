@@ -77,8 +77,8 @@ void tuya_zone_set_state(int zone_id, bool triggered) {
     printf("[%s] Tuya zone %d set to %s\n", TAG, zone_id, triggered ? "TRIGGERED" : "SECURE");
 
     // Find the zone index in the global zones array
-    for (int i = 0; i < z_count; i++) {
-        if (zones[i].id == zone_id) {
+    for (int i = 0; i < storage_get_zone_count(); i++) {
+        if (storage_get_zone(i)->id == zone_id) {
             // Trigger zone processing if state changed to triggered
             if (triggered && engine_get_arm_state() != 4) {
                 engine_process_zone_trip(i);

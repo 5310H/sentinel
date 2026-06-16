@@ -17,11 +17,6 @@
 #endif
 
 // External globals from storage_mgr
-extern config_t config; 
-extern user_t users[MAX_USERS];
-extern int u_count;
-
-// --- HELPERS ---
 
 // --- CORE DISPATCH LOGIC ---
 
@@ -35,19 +30,19 @@ void dispatcher_alert(zone_t *z) {
     // STEP 1: GATEKEEPER (Config check)
     if (zone_call == ZONE_CALL_FIRE) {
         category = "FIRE";
-        monitoring_enabled = config.is_monitor_fire;
+        monitoring_enabled = storage_get_config()->is_monitor_fire;
     } 
     else if (zone_call == ZONE_CALL_POLICE) {
         category = "POLICE";
-        monitoring_enabled = config.is_monitor_police;
+        monitoring_enabled = storage_get_config()->is_monitor_police;
     } 
     else if (zone_call == ZONE_CALL_MEDICAL) {
         category = "MEDICAL";
-        monitoring_enabled = config.is_monitor_medical;
+        monitoring_enabled = storage_get_config()->is_monitor_medical;
     } 
     else {
         category = "OTHER";
-        monitoring_enabled = config.is_monitor_other;
+        monitoring_enabled = storage_get_config()->is_monitor_other;
     }
 
     if (!monitoring_enabled) {
@@ -56,19 +51,19 @@ void dispatcher_alert(zone_t *z) {
     }
 
     // STEP 2: ROUTING BASED ON NOTIFY TYPE
-    LOG_WARN(TAG, "Dispatching alert for %s (Method: %d)", z->name, config.notify);
+    LOG_WARN(TAG, "Dispatching alert for %s (Method: %d)", z->name, storage_get_config()->notify);
 
-    switch(config.notify) {
+    switch(storage_get_config()->notify) {
         case 1: // NONE
             printf("[%s] Notify set to NONE. Alert suppressed.\n", TAG);
             break;
 
         case 2: // SMTP / EMAIL
-            smtp_alert_all_contacts(&config, users, u_count, z);
+            smtp_alert_all_contacts(storage_get_config(), z);
             break;
 
         case 3: // TELEGRAM
-            telegram_send_alert(&config, z);
+            telegram_send_alert(storage_get_config(), z);
             break;
 
         case 4: // NOONLIGHT (Professional Monitoring)
@@ -81,8 +76,8 @@ void dispatcher_alert(zone_t *z) {
                 else if (zone_call == ZONE_CALL_MEDICAL) slot = SLOT_MED;    // Slot 2
 
                 // Only trigger if a dispatch isn't already active in this slot
-                if (strlen(config.nl_ids[slot]) == 0) {
-                    noonlight_create_alarm(&config, z, slot);
+                if (strlen(storage_get_config()->nl_ids[slot]) == 0) {
+                    noonlight_create_alarm(storage_get_config(), z, slot);
                 } else {
                     LOG_DEBUG(TAG, "Noonlight slot %d already active. Skipping duplicate.", slot);
                 }
@@ -90,7 +85,7 @@ void dispatcher_alert(zone_t *z) {
             break;
 
         default:
-            printf("[%s] Unknown notify type: %d\n", TAG, config.notify);
+            printf("[%s] Unknown notify type: %d\n", TAG, storage_get_config()->notify);
             break;
     }
 }
@@ -98,19 +93,19 @@ void dispatcher_alert(zone_t *z) {
 void dispatcher_cancel_alert(void) {
     printf("[%s] Global Cancellation requested.\n", TAG);
 
-    if (config.notify == 4) {
+    if (storage_get_config()->notify == 4) {
         // Attempt to cancel all 4 possible Noonlight slots (Fire, Police, Med, Other)
         for (int i = 0; i < MAX_ALARM_SLOTS && i < 4; i++) {
-            if (config.nl_ids[i][0] != '\0' && strlen(config.nl_ids[i]) > 0) {
-                noonlight_cancel_alarm(&config, config.nl_ids[i]);
+            if (storage_get_config()->nl_ids[i][0] != '\0' && strlen(storage_get_config()->nl_ids[i]) > 0) {
+                noonlight_cancel_alarm(storage_get_config(), storage_get_config()->nl_ids[i]);
                 // Note: ID is cleared by noonlight.c/sync_task once confirmed by cloud
             }
         }
     } 
-    else if (config.notify == 3) {
-        telegram_send_cancellation(&config);
+    else if (storage_get_config()->notify == 3) {
+        telegram_send_cancellation(storage_get_config());
     }
-    else if (config.notify == 2) {
-        smtp_send_cancellation(&config, users, u_count);
+    else if (storage_get_config()->notify == 2) {
+        smtp_send_cancellation(storage_get_config());
     }
 }

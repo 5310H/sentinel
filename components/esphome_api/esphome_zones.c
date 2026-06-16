@@ -46,8 +46,8 @@ bool esphome_zone_get_state(int zone_id) {
     }
 
     // Check if any ESPHome device has this zone mapped and is enabled
-    for (int i = 0; i < esphome_count; i++) {
-        if (esphome_devices[i].virtual_zone_start == zone_id && esphome_devices[i].enabled) {
+    for (int i = 0; i < storage_get_esphome_count(); i++) {
+        if (storage_get_esphome_device(i)->virtual_zone_start == zone_id && storage_get_esphome_device(i)->enabled) {
 #ifdef ESP_PLATFORM
             // TODO: Check actual device state via ESPHome API
             // For now, use mock state
@@ -55,16 +55,16 @@ bool esphome_zone_get_state(int zone_id) {
             return mock_zone_states[mock_index];
 #else
             // On Linux, try to connect to real ESPHome device
-            if (!esphome_devices[i].is_connected) {
+            if (!storage_get_esphome_device(i)->is_connected) {
                 // Attempt to connect
-                if (esphome_api_connect(esphome_devices[i].hostname, esphome_devices[i].port,
-                                       esphome_devices[i].password, 
-                                       esphome_devices[i].encryption_key) == 0) {
+                if (esphome_api_connect(storage_get_esphome_device(i)->hostname, storage_get_esphome_device(i)->port,
+                                       storage_get_esphome_device(i)->password, 
+                                       storage_get_esphome_device(i)->encryption_key) == 0) {
                     printf("[%s] Connected to ESPHome device %s for zone monitoring\n", 
-                           TAG, esphome_devices[i].hostname);
+                           TAG, storage_get_esphome_device(i)->hostname);
                 } else {
                     printf("[%s] Failed to connect to ESPHome device %s\n", 
-                           TAG, esphome_devices[i].hostname);
+                           TAG, storage_get_esphome_device(i)->hostname);
                     return false;
                 }
             }
@@ -72,9 +72,9 @@ bool esphome_zone_get_state(int zone_id) {
             // Get entity state for this zone
             esphome_entity_t entities[10];
             int entity_count = 0;
-            if (esphome_api_get_entities(esphome_devices[i].hostname, entities, 10, &entity_count) == 0) {
+            if (esphome_api_get_entities(storage_get_esphome_device(i)->hostname, entities, 10, &entity_count) == 0) {
                 // Find the binary sensor entity that corresponds to this zone
-                int entity_index = zone_id - esphome_devices[i].virtual_zone_start;
+                int entity_index = zone_id - storage_get_esphome_device(i)->virtual_zone_start;
                 if (entity_index >= 0 && entity_index < entity_count && 
                     entities[entity_index].type == ESPHOME_ENTITY_BINARY_SENSOR) {
                     return entities[entity_index].current_state;
@@ -133,8 +133,8 @@ void esphome_zone_set_state(int zone_id, bool triggered) {
 #endif
 
     // Find the zone index in the global zones array
-    for (int i = 0; i < z_count; i++) {
-        if (zones[i].id == zone_id) {
+    for (int i = 0; i < storage_get_zone_count(); i++) {
+        if (storage_get_zone(i)->id == zone_id) {
             // Trigger zone processing if state changed to triggered
             if (triggered && engine_get_arm_state() != 4) {
                 engine_process_zone_trip(i);

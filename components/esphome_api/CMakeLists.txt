@@ -1,8 +1,6 @@
 idf_component_register(
     SRCS 
         "esphome_api_client.c"
-        "esphome_api_protocol.c"
-        "esphome_api_server.c"
         "esphome_zones.c"
     INCLUDE_DIRS "."
     REQUIRES 
@@ -11,4 +9,5 @@ idf_component_register(
         engine
         storage
         comms
+        esphome-c-api
 )

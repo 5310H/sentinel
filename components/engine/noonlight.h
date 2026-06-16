@@ -44,7 +44,7 @@
  * @return true if alarm created successfully, false on HTTP error
  * 
  * @example
- * if (noonlight_create_alarm(&config, &zones[0], SLOT_FIRE)) {
+ * if (noonlight_create_alarm(storage_get_config(), storage_get_zone(0), SLOT_FIRE)) {
  *     LOG_INFO("Fire alarm dispatched");
  * }
  */
@@ -61,7 +61,7 @@ bool noonlight_create_alarm(config_t *conf, zone_t *z, int slot);
  * @param alarm_id Alarm ID from noonlight_create_alarm() return value
  * 
  * @example
- * noonlight_log_event(&config, &zones[2], "alarm_abc123");
+ * noonlight_log_event(storage_get_config(), storage_get_zone(2), "alarm_abc123");
  */
 void noonlight_log_event(config_t *conf, zone_t *z, const char* alarm_id);
 
@@ -75,7 +75,7 @@ void noonlight_log_event(config_t *conf, zone_t *z, const char* alarm_id);
  * @param alarm_id Alarm ID from noonlight_create_alarm() return value
  * 
  * @example
- * noonlight_send_instructions(&config, "alarm_abc123");
+ * noonlight_send_instructions(storage_get_config(), "alarm_abc123");
  */
 void noonlight_send_instructions(config_t *conf, const char* alarm_id);
 
@@ -91,7 +91,7 @@ void noonlight_send_instructions(config_t *conf, const char* alarm_id);
  * @param alarm_id Alarm ID from noonlight_create_alarm() return value
  * 
  * @example
- * noonlight_sync_people(&config, users, user_count, "alarm_abc123");
+ * noonlight_sync_people(storage_get_config(), users, user_count, "alarm_abc123");
  */
 void noonlight_sync_people(config_t *conf, user_t *users_list, int count, const char* alarm_id);
 
@@ -107,7 +107,7 @@ void noonlight_sync_people(config_t *conf, user_t *users_list, int count, const 
  * @return true if cancellation successful, false on verification failure or error
  * 
  * @example
- * if (noonlight_cancel_alarm(&config, alarm_id)) {
+ * if (noonlight_cancel_alarm(storage_get_config(), alarm_id)) {
  *     LOG_INFO("Emergency dispatch cancelled");
  * }
  */

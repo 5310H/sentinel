@@ -31,7 +31,7 @@
  * @brief Apply network configuration (DHCP or static IP)
  * 
  * Configures IPv4 settings on network interface.
- * Uses net_cfg.use_dhcp to determine mode.
+ * Uses storage_get_network()->use_dhcp to determine mode.
  * 
  * @param netif Network interface pointer
  */

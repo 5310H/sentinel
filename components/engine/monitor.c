@@ -21,13 +21,13 @@
 
 void monitor_init(void) {
     // On ESP32, we assume engine_init has already configured the GPIO directions
-    printf("[%s] Service initialized. Scanning %d zones.\n", TAG, z_count);
+    printf("[%s] Service initialized. Scanning %d zones.\n", TAG, storage_get_zone_count());
 }
 
 // --- EVENT PROCESSING ---
 
 void monitor_process_event(int index) {
-    if (index < 0 || index >= z_count) return;
+    if (index < 0 || index >= storage_get_zone_count()) return;
 
     // Direct hand-off to the engine. 
     // The engine's tick logic will handle delays (Entry/Exit) 
@@ -39,18 +39,18 @@ void monitor_process_event(int index) {
 
 void monitor_scan_all() {
     // 1. Scan GPIO-based zones
-    for (int i = 0; i < z_count; i++) {
+    for (int i = 0; i < storage_get_zone_count(); i++) {
         // Skip virtual zones (gpio = -1) - handled separately
-        if (zones[i].gpio == -1) continue;
+        if (storage_get_zone(i)->gpio == -1) continue;
 
         int state = 1; // Default to secure (High)
 
 #ifdef ESP_PLATFORM
-        state = gpio_get_level((gpio_num_t)zones[i].gpio);
+        state = gpio_get_level((gpio_num_t)storage_get_zone(i)->gpio);
 #else
         // Forward to the mock digitalRead in your test environment
         extern int digitalRead(int pin);
-        state = digitalRead(zones[i].gpio);
+        state = digitalRead(storage_get_zone(i)->gpio);
 #endif
 
         // If state is 0, the circuit is closed (sensor triggered)
@@ -64,19 +64,19 @@ void monitor_scan_all() {
     }
 
     // 2. Scan virtual zones (ESPHome, Tuya, etc.)
-    for (int i = 0; i < z_count; i++) {
+    for (int i = 0; i < storage_get_zone_count(); i++) {
         // Only process virtual zones (gpio = -1)
-        if (zones[i].gpio != -1) continue;
+        if (storage_get_zone(i)->gpio != -1) continue;
 
         bool triggered = false;
 
         // Check ESPHome virtual zones (33-64)
-        if (esphome_is_zone_id_valid(zones[i].id)) {
-            triggered = esphome_zone_get_state(zones[i].id);
+        if (esphome_is_zone_id_valid(storage_get_zone(i)->id)) {
+            triggered = esphome_zone_get_state(storage_get_zone(i)->id);
         }
         // Check Tuya virtual zones (65-96)
-        else if (tuya_is_zone_id_valid(zones[i].id)) {
-            triggered = tuya_zone_get_state(zones[i].id);
+        else if (tuya_is_zone_id_valid(storage_get_zone(i)->id)) {
+            triggered = tuya_zone_get_state(storage_get_zone(i)->id);
         }
 
         // Add other virtual zone types here (Matter, Zigbee, etc.)

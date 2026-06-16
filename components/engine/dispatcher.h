@@ -21,7 +21,7 @@
  * 
  * Called when a zone is violated while armed. Implements gatekeeper logic:
  * - Checks if alert type monitoring is enabled (fire/police/medical/other)
- * - Filters based on config.notify setting
+ * - Filters based on storage_get_config()->notify setting
  * - Routes to appropriate notification method
  * - Prevents duplicate alerts for same zone
  * 

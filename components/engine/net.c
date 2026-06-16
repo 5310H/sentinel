@@ -234,7 +234,7 @@ esp_err_t w5500_health_check(void) {
 }
 
 void init_network_hardware(esp_netif_t *netif) {
-    if (net_cfg.use_dhcp) {
+    if (storage_get_network()->use_dhcp) {
         ESP_LOGI(TAG, "Starting DHCP mode with 30 second timeout...");
         
 #ifdef ESP_PLATFORM
@@ -259,19 +259,19 @@ void init_network_hardware(esp_netif_t *netif) {
         
         if (!dhcp_success) {
             ESP_LOGW(TAG, "DHCP timeout after %u ms - falling back to static IP: %s",
-                dhcp_timeout_ms, net_cfg.ip);
+                dhcp_timeout_ms, storage_get_network()->ip);
             
             // Stop DHCP and apply static IP
             esp_netif_dhcpc_stop(netif);
             
             esp_netif_ip_info_t info;
-            info.ip.addr = ipaddr_addr(net_cfg.ip);
-            info.gw.addr = ipaddr_addr(net_cfg.gateway);
-            info.netmask.addr = ipaddr_addr(net_cfg.netmask);
+            info.ip.addr = ipaddr_addr(storage_get_network()->ip);
+            info.gw.addr = ipaddr_addr(storage_get_network()->gateway);
+            info.netmask.addr = ipaddr_addr(storage_get_network()->netmask);
             
             esp_err_t ret = esp_netif_set_ip_info(netif, &info);
             if (ret == ESP_OK) {
-                ESP_LOGI(TAG, "Static IP configured: %s", net_cfg.ip);
+                ESP_LOGI(TAG, "Static IP configured: %s", storage_get_network()->ip);
                 g_network_up = true;  // Mark network as up
             } else {
                 ESP_LOGE(TAG, "Failed to set static IP: %s", esp_err_to_name(ret));
@@ -279,14 +279,14 @@ void init_network_hardware(esp_netif_t *netif) {
         }
 #endif
     } else {
-        ESP_LOGI(TAG, "Configuring Static IP: %s", net_cfg.ip);
+        ESP_LOGI(TAG, "Configuring Static IP: %s", storage_get_network()->ip);
 #ifdef ESP_PLATFORM
         esp_netif_ip_info_t info;
         esp_netif_dhcpc_stop(netif);
         
-        info.ip.addr = ipaddr_addr(net_cfg.ip);
-        info.gw.addr = ipaddr_addr(net_cfg.gateway);
-        info.netmask.addr = ipaddr_addr(net_cfg.netmask);
+        info.ip.addr = ipaddr_addr(storage_get_network()->ip);
+        info.gw.addr = ipaddr_addr(storage_get_network()->gateway);
+        info.netmask.addr = ipaddr_addr(storage_get_network()->netmask);
         
         esp_err_t ret = esp_netif_set_ip_info(netif, &info);
         if (ret == ESP_OK) {
@@ -296,7 +296,7 @@ void init_network_hardware(esp_netif_t *netif) {
             ESP_LOGE(TAG, "Failed to set static IP: %s", esp_err_to_name(ret));
         }
 #else
-            printf("[NET] Static IP configuration: %s\n", net_cfg.ip);
+            printf("[NET] Static IP configuration: %s\n", storage_get_network()->ip);
 #endif
     }
 }

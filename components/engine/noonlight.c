@@ -15,8 +15,6 @@
     #include <curl/curl.h>
 #endif
 
-extern config_t config;
-
 #ifndef ESP_PLATFORM
 static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     // ... existing callback code ...
@@ -221,8 +219,8 @@ int os_get_noonlight_status(const char* alarm_id) {
     char response_buffer[2048] = {0};
     char url[256];
     int result_status = 1; 
-    snprintf(url, sizeof(url), "%s/%s/status", config.monitoring_url, alarm_id);
-    if (do_request(&config, url, "GET", NULL, response_buffer, 2048)) {
+    snprintf(url, sizeof(url), "%s/%s/status", storage_get_config()->monitoring_url, alarm_id);
+    if (do_request(storage_get_config(), url, "GET", NULL, response_buffer, 2048)) {
         cJSON *root = cJSON_Parse(response_buffer);
         if (root) {
             cJSON *st = cJSON_GetObjectItem(root, "status");

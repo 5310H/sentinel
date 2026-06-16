@@ -53,7 +53,7 @@ extern char payload_buffer[1024];
  * @param is_update true for event updates, false for new alarm
  * 
  * @example
- * payload_build_noonlight(&config, &zones[0], false);
+ * payload_build_noonlight(storage_get_config(), storage_get_zone(0), false);
  * // payload_buffer now contains Noonlight JSON
  */
 void payload_build_noonlight(config_t *o, zone_t *z, bool is_update);
@@ -71,7 +71,7 @@ void payload_build_noonlight(config_t *o, zone_t *z, bool is_update);
  * @param z Zone that triggered
  * 
  * @example
- * payload_build_telegram(&config, &zones[2]);
+ * payload_build_telegram(storage_get_config(), storage_get_zone(2));
  * // payload_buffer now contains Telegram JSON message
  */
 void payload_build_telegram(config_t *o, zone_t *z);
@@ -91,7 +91,7 @@ void payload_build_telegram(config_t *o, zone_t *z);
  * @param c User recipient (name, email)
  * 
  * @example
- * payload_build_smtp(&config, &zones[1], &users[0]);
+ * payload_build_smtp(storage_get_config(), storage_get_zone(1), storage_get_user(0));
  * // payload_buffer now contains SMTP command JSON
  */
 void payload_build_smtp(config_t *o, zone_t *z, user_t *c);

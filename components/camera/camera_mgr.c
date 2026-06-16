@@ -374,7 +374,7 @@ bool camera_mgr_poll_motion(int camera_id) {
         config.auth_type = HTTP_AUTH_TYPE_BASIC;
     }
 
-    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_handle_t client = esp_http_client_initstorage_get_config();
     if (!client) {
         ESP_LOGE(TAG, "Failed to init HTTP client for motion polling");
         return false;
@@ -519,7 +519,7 @@ esp_err_t camera_mgr_fetch_snapshot(int camera_id, uint8_t **out_buffer, size_t 
             .timeout_ms = HTTP_TIMEOUT_MS,
         };
 
-        esp_http_client_handle_t client = esp_http_client_init(&config);
+        esp_http_client_handle_t client = esp_http_client_initstorage_get_config();
         if (!client) {
             ESP_LOGE(TAG, "Failed to init HTTP client for custom URL");
             return ESP_FAIL;
@@ -606,7 +606,7 @@ esp_err_t camera_mgr_fetch_snapshot(int camera_id, uint8_t **out_buffer, size_t 
             .timeout_ms = HTTP_TIMEOUT_MS,
         };
 
-        esp_http_client_handle_t client = esp_http_client_init(&config);
+        esp_http_client_handle_t client = esp_http_client_initstorage_get_config();
         if (!client) {
             ESP_LOGE(TAG, "Failed to init HTTP client");
             continue;
