@@ -1,16 +1,7 @@
 [{
-		"name":	"Installer",
+		"name":	"admin",
 		"pin":	"1234",
 		"emergency_pin":	"1234",
-		"phone":	"",
-		"email":	"5310@trahreg.com",
-		"notify":	1,
-		"is_admin":	false,
-		"requires_2fa":	false
-	}, {
-		"name":	"Installer",
-		"pin":	"1234",
-		"emergency_pin":	"123 ",
 		"phone":	"",
 		"email":	"5310@trahreg.com",
 		"notify":	1,

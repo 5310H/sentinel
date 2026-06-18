@@ -8,6 +8,7 @@
 
 #ifdef ESP_PLATFORM
 #include "cert_mgr.h" // Certificate manager
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 static const char *TAG = "STORAGE_MGR";
@@ -25,6 +26,8 @@ static const char *TAG = "STORAGE_MGR";
 #define SD_MOSI GPIO_NUM_2
 #define SD_SCLK GPIO_NUM_1
 #define SD_CS GPIO_NUM_9
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #else
 #define BASE_PATH "data"
 #endif
@@ -37,17 +40,28 @@ static zone_t zones[MAX_ZONES];
 static esphome_device_t esphome_devices[32];
 static network_t net_cfg;
 
+#ifdef ESP_PLATFORM
+static SemaphoreHandle_t storage_mutex = NULL;
+#endif
+
 static int z_count = 0, r_count = 0, u_count = 0, esphome_count = 0;
 
 // --- ACCESSOR FUNCTIONS ---
 config_t *storage_get_config(void) { return &config; }
 network_t *storage_get_network(void) { return &net_cfg; }
-int storage_get_zone_count(void) { return z_count; }
+int storage_get_zone_count(void) {
+  storage_lock();
+  int count = z_count;
+  storage_unlock();
+  return count;
+}
 
 void storage_set_zone_count(int count) {
+  storage_lock();
   if (count >= 0 && count <= MAX_ZONES) {
     z_count = count;
   }
+  storage_unlock();
 }
 
 zone_t *storage_get_zone(int index) {
@@ -57,12 +71,19 @@ zone_t *storage_get_zone(int index) {
   return NULL;
 }
 
-int storage_get_relay_count(void) { return r_count; }
+int storage_get_relay_count(void) {
+  storage_lock();
+  int count = r_count;
+  storage_unlock();
+  return count;
+}
 
 void storage_set_relay_count(int count) {
+  storage_lock();
   if (count >= 0 && count <= MAX_RELAYS) {
     r_count = count;
   }
+  storage_unlock();
 }
 
 relay_t *storage_get_relay(int index) {
@@ -72,12 +93,19 @@ relay_t *storage_get_relay(int index) {
   return NULL;
 }
 
-int storage_get_user_count(void) { return u_count; }
+int storage_get_user_count(void) {
+  storage_lock();
+  int count = u_count;
+  storage_unlock();
+  return count;
+}
 
 void storage_set_user_count(int count) {
+  storage_lock();
   if (count >= 0 && count <= MAX_USERS) {
     u_count = count;
   }
+  storage_unlock();
 }
 
 user_t *storage_get_user(int index) {
@@ -87,12 +115,19 @@ user_t *storage_get_user(int index) {
   return NULL;
 }
 
-int storage_get_esphome_count(void) { return esphome_count; }
+int storage_get_esphome_count(void) {
+  storage_lock();
+  int count = esphome_count;
+  storage_unlock();
+  return count;
+}
 
 void storage_set_esphome_count(int count) {
+  storage_lock();
   if (count >= 0 && count <= 32) {
     esphome_count = count;
   }
+  storage_unlock();
 }
 
 esphome_device_t *storage_get_esphome_device(int index) {
@@ -100,6 +135,20 @@ esphome_device_t *storage_get_esphome_device(int index) {
     return &esphome_devices[index];
   }
   return NULL;
+}
+
+void storage_lock(void) {
+#ifdef ESP_PLATFORM
+  if (storage_mutex)
+    xSemaphoreTakeRecursive(storage_mutex, portMAX_DELAY);
+#endif
+}
+
+void storage_unlock(void) {
+#ifdef ESP_PLATFORM
+  if (storage_mutex)
+    xSemaphoreGiveRecursive(storage_mutex);
+#endif
 }
 
 // --- INTERNAL HELPERS ---
@@ -159,6 +208,15 @@ static bool validate_config(void) {
   }
   if (config.cancel_delay < 0 || config.cancel_delay > 600) {
     config.cancel_delay = 180; // Default
+  }
+  if (config.watchdog_esphome_sec < 5 || config.watchdog_esphome_sec > 600) {
+    config.watchdog_esphome_sec = 15; // Default 15s
+  }
+  if (config.watchdog_camera_fails < 1 || config.watchdog_camera_fails > 20) {
+    config.watchdog_camera_fails = 3; // Default 3 fails
+  }
+  if (config.watchdog_network_sec < 10 || config.watchdog_network_sec > 1200) {
+    config.watchdog_network_sec = 30; // Default 30s
   }
 
   return true;
@@ -321,7 +379,11 @@ static char *read_file(const char *filename) {
   fseek(f, 0, SEEK_END);
   long len = ftell(f);
   fseek(f, 0, SEEK_SET);
+#ifdef ESP_PLATFORM
+  char *data = heap_caps_malloc(len + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
   char *data = malloc(len + 1);
+#endif
   if (data) {
     fread(data, 1, len, f);
     data[len] = '\0';
@@ -412,7 +474,8 @@ void storage_sync_sd_to_internal(void) {
   const char *targets[] = {"index.html",  "users.html",  "audit.html",
                            "tester.html", "config.json", "network.json",
                            "zones.json",  "relays.json", "esphome.json"};
-  for (int i = 0; i < 7; i++) {
+  int num_targets = sizeof(targets) / sizeof(targets[0]);
+  for (int i = 0; i < num_targets; i++) {
     char src[64], dst[64];
     snprintf(src, sizeof(src), "/sdcard/%s", targets[i]);
     snprintf(dst, sizeof(dst), "/spiffs/%s", targets[i]);
@@ -434,10 +497,25 @@ void storage_sync_sd_to_internal(void) {
   }
 }
 #endif
+
+#ifdef ESP_PLATFORM
+static void *psram_malloc(size_t sz) {
+  // Allocate from external PSRAM, fallback to internal if full
+  return heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+}
+#endif
+
 // --- INITIALIZATION ---
 
 void storage_init(void) {
 #ifdef ESP_PLATFORM
+  if (storage_mutex == NULL) {
+    storage_mutex = xSemaphoreCreateRecursiveMutex();
+  }
+
+  // Force cJSON to use PSRAM for all JSON parsing and generation
+  cJSON_Hooks hooks = {.malloc_fn = psram_malloc, .free_fn = heap_caps_free};
+  cJSON_InitHooks(&hooks);
 
   ESP_LOGI(TAG, "Mounting SPIFFS Partition...");
   esp_vfs_spiffs_conf_t conf = {.base_path = BASE_PATH,
@@ -473,7 +551,12 @@ char *read_file_to_string(const char *filename) {
   long length = ftell(f);
   fseek(f, 0, SEEK_SET);
 
+#ifdef ESP_PLATFORM
+  char *buffer =
+      heap_caps_malloc(length + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
   char *buffer = malloc(length + 1);
+#endif
   if (buffer) {
     fread(buffer, 1, length, f);
     buffer[length] = '\0';
@@ -492,6 +575,7 @@ void write_string_to_file(const char *filename, const char *content) {
 }
 
 void storage_add_rf_user(const char *name, const char *rf_code) {
+  storage_lock();
   // 1. Load existing users.json
   char *json_str = read_file_to_string("/spiffs/users.json");
   cJSON *root = cJSON_Parse(json_str);
@@ -508,19 +592,29 @@ void storage_add_rf_user(const char *name, const char *rf_code) {
   // 3. Add to array and save
   cJSON_AddItemToArray(root, newUser);
   char *rendered = cJSON_Print(root);
-  write_string_to_file("/spiffs/users.json", rendered);
+  if (rendered) {
+    write_string_to_file("/spiffs/users.json", rendered);
+  }
 
   // 4. Cleanup
   cJSON_Delete(root);
   free(json_str);
   free(rendered);
+  storage_unlock();
 }
 // --- PERSISTENCE ---
 
 void storage_save_users(void) {
+  storage_lock();
   cJSON *root = cJSON_CreateArray();
+  if (!root) {
+    storage_unlock();
+    return;
+  }
   for (int i = 0; i < u_count; i++) {
     cJSON *item = cJSON_CreateObject();
+    if (!item)
+      continue;
     cJSON_AddStringToObject(item, "name", users[i].name);
     // Save plaintext PIN
     if (users[i].pin[0] != '\0') {
@@ -552,10 +646,16 @@ void storage_save_users(void) {
     free(json_str);
   }
   cJSON_Delete(root);
+  storage_unlock();
 }
 
 void storage_save_config(void) {
+  storage_lock();
   cJSON *root = cJSON_CreateObject();
+  if (!root) {
+    storage_unlock();
+    return;
+  }
 
   cJSON_AddStringToObject(root, "account_id", config.account_id);
   cJSON_AddStringToObject(root, "pin", config.pin);
@@ -580,10 +680,14 @@ void storage_save_config(void) {
   cJSON_AddNumberToObject(root, "notify", config.notify);
 
   cJSON *nl_array = cJSON_CreateArray();
-  for (int i = 0; i < MAX_ALARM_SLOTS; i++) {
-    cJSON_AddItemToArray(nl_array, cJSON_CreateString(config.nl_ids[i]));
+  if (nl_array) {
+    for (int i = 0; i < MAX_ALARM_SLOTS; i++) {
+      cJSON *str_item = cJSON_CreateString(config.nl_ids[i]);
+      if (str_item)
+        cJSON_AddItemToArray(nl_array, str_item);
+    }
+    cJSON_AddItemToObject(root, "nl_ids", nl_array);
   }
-  cJSON_AddItemToObject(root, "nl_ids", nl_array);
 
   cJSON_AddBoolToObject(root, "is_monitor_fire", config.is_monitor_fire);
   cJSON_AddBoolToObject(root, "is_monitor_police", config.is_monitor_police);
@@ -609,6 +713,13 @@ void storage_save_config(void) {
   cJSON_AddNumberToObject(root, "exit_delay", config.exit_delay);
   cJSON_AddNumberToObject(root, "cancel_delay", config.cancel_delay);
 
+  cJSON_AddNumberToObject(root, "watchdog_esphome_sec",
+                          config.watchdog_esphome_sec);
+  cJSON_AddNumberToObject(root, "watchdog_camera_fails",
+                          config.watchdog_camera_fails);
+  cJSON_AddNumberToObject(root, "watchdog_network_sec",
+                          config.watchdog_network_sec);
+
   char *rendered = cJSON_Print(root);
   if (rendered) {
     char path[128];
@@ -621,11 +732,13 @@ void storage_save_config(void) {
     free(rendered);
   }
   cJSON_Delete(root);
+  storage_unlock();
 }
 
 // --- LOADING ---
 
 void storage_load_all() {
+  storage_lock();
   char *data;
   cJSON *root, *item;
 
@@ -728,6 +841,13 @@ void storage_load_all() {
           safe_get_int(cJSON_GetObjectItem(root, "exit_delay"), 60);
       config.cancel_delay =
           safe_get_int(cJSON_GetObjectItem(root, "cancel_delay"), 10);
+
+      config.watchdog_esphome_sec =
+          safe_get_int(cJSON_GetObjectItem(root, "watchdog_esphome_sec"), 15);
+      config.watchdog_camera_fails =
+          safe_get_int(cJSON_GetObjectItem(root, "watchdog_camera_fails"), 3);
+      config.watchdog_network_sec =
+          safe_get_int(cJSON_GetObjectItem(root, "watchdog_network_sec"), 30);
 
       // Validate loaded config
       validate_config();
@@ -897,7 +1017,7 @@ void storage_load_all() {
     free(data);
   }
 
-  // 5. Load ESPHome Devices (load ALL devices, not just enabled ones)
+  // 5 & 6. Load ESPHome Devices and Generate Virtual Zones/Relays
   esphome_count = 0;
   if ((data = read_file("esphome.json"))) {
     root = cJSON_Parse(data);
@@ -905,6 +1025,9 @@ void storage_load_all() {
       cJSON_ArrayForEach(item, root) {
         if (esphome_count >= 32)
           break;
+
+        esphome_device_t *dev = &esphome_devices[esphome_count];
+
         safe_strncpy(esphome_devices[esphome_count].hostname,
                      cJSON_GetObjectItem(item, "hostname"), STR_SMALL);
         esphome_devices[esphome_count].port =
@@ -928,6 +1051,43 @@ void storage_load_all() {
                        STR_MEDIUM);
           safe_strncpy(esphome_devices[esphome_count].location,
                        cJSON_GetObjectItem(zone_obj, "location"), STR_MEDIUM);
+
+          // 6a. Create virtual zone if configured and enabled
+          if (dev->virtual_zone_start > 0 && dev->enabled &&
+              z_count < MAX_ZONES) {
+            zone_t *vzone = &zones[z_count];
+            vzone->id = dev->virtual_zone_start;
+            snprintf(vzone->name, STR_SMALL, "%s", dev->friendly_name);
+            safe_strncpy(vzone->description,
+                         cJSON_GetObjectItem(zone_obj, "description"),
+                         STR_MEDIUM);
+            safe_strncpy(vzone->type, cJSON_GetObjectItem(zone_obj, "type"),
+                         STR_SMALL);
+            safe_strncpy(vzone->call, cJSON_GetObjectItem(zone_obj, "call"),
+                         STR_SMALL);
+            safe_strncpy(vzone->location,
+                         cJSON_GetObjectItem(zone_obj, "location"), STR_SMALL);
+            safe_strncpy(vzone->model, cJSON_GetObjectItem(zone_obj, "model"),
+                         STR_SMALL);
+            safe_strncpy(vzone->manufacturer,
+                         cJSON_GetObjectItem(zone_obj, "manufacturer"),
+                         STR_SMALL);
+            vzone->is_chime =
+                safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_chime"));
+            vzone->is_alarm_on_armed_only = safe_get_bool(
+                cJSON_GetObjectItem(zone_obj, "is_alarm_on_armed_only"));
+            vzone->gpio = -1; // Virtual - no GPIO
+            vzone->is_i2c = false;
+            vzone->i2c_address = 0;
+            vzone->is_perimeter =
+                safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_perimeter"));
+            vzone->is_interior =
+                safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_interior"));
+            vzone->is_panic =
+                safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_panic"));
+            vzone->is_alert_sent = false;
+            z_count++;
+          }
         } else {
           // Fallback to old format
           esphome_devices[esphome_count].virtual_zone_start =
@@ -950,6 +1110,28 @@ void storage_load_all() {
                  esphome_count,
                  esphome_devices[esphome_count].virtual_relay_start,
                  esphome_devices[esphome_count].entity_key);
+
+          // 6b. Create virtual relay if configured and enabled
+          if (dev->virtual_relay_start > 0 && dev->enabled &&
+              r_count < MAX_RELAYS) {
+            relay_t *vrelay = &relays[r_count];
+            vrelay->id = dev->virtual_relay_start;
+            snprintf(vrelay->name, STR_MEDIUM, "%s", dev->friendly_name);
+            safe_strncpy(vrelay->description,
+                         cJSON_GetObjectItem(relay_obj, "description"),
+                         STR_MEDIUM);
+            vrelay->duration =
+                safe_get_int(cJSON_GetObjectItem(relay_obj, "duration"), 0);
+            safe_strncpy(vrelay->location,
+                         cJSON_GetObjectItem(relay_obj, "location"),
+                         STR_MEDIUM);
+            safe_strncpy(vrelay->type, cJSON_GetObjectItem(relay_obj, "type"),
+                         STR_SMALL);
+            vrelay->is_repeat =
+                safe_get_bool(cJSON_GetObjectItem(relay_obj, "is_repeat"));
+            vrelay->gpio = -1; // Virtual - no GPIO
+            r_count++;
+          }
         } else {
           // Fallback to old format
           esphome_devices[esphome_count].virtual_relay_start =
@@ -965,113 +1147,17 @@ void storage_load_all() {
     free(data);
   }
 
-  // 6. Create virtual zones and relays from ESPHome devices
-  for (int i = 0; i < esphome_count; i++) {
-    esphome_device_t *dev = &esphome_devices[i];
-
-    // Create virtual zone if configured and enabled
-    if (dev->virtual_zone_start > 0 && dev->enabled && z_count < MAX_ZONES) {
-      // Re-parse zone details from JSON
-      if ((data = read_file("esphome.json"))) {
-        root = cJSON_Parse(data);
-        if (root) {
-          int idx = 0;
-          cJSON_ArrayForEach(item, root) {
-            if (idx == i) {
-              cJSON *zone_obj = cJSON_GetObjectItem(item, "zone");
-              if (zone_obj) {
-                zone_t *vzone = &zones[z_count];
-                vzone->id = dev->virtual_zone_start;
-                snprintf(vzone->name, STR_SMALL, "%s", dev->friendly_name);
-                safe_strncpy(vzone->description,
-                             cJSON_GetObjectItem(zone_obj, "description"),
-                             STR_MEDIUM);
-                safe_strncpy(vzone->type, cJSON_GetObjectItem(zone_obj, "type"),
-                             STR_SMALL);
-                safe_strncpy(vzone->call, cJSON_GetObjectItem(zone_obj, "call"),
-                             STR_SMALL);
-                safe_strncpy(vzone->location,
-                             cJSON_GetObjectItem(zone_obj, "location"),
-                             STR_SMALL);
-                safe_strncpy(vzone->model,
-                             cJSON_GetObjectItem(zone_obj, "model"), STR_SMALL);
-                safe_strncpy(vzone->manufacturer,
-                             cJSON_GetObjectItem(zone_obj, "manufacturer"),
-                             STR_SMALL);
-                vzone->is_chime =
-                    safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_chime"));
-                vzone->is_alarm_on_armed_only = safe_get_bool(
-                    cJSON_GetObjectItem(zone_obj, "is_alarm_on_armed_only"));
-                vzone->gpio = -1; // Virtual - no GPIO
-                vzone->is_i2c = false;
-                vzone->i2c_address = 0;
-                vzone->is_perimeter = safe_get_bool(
-                    cJSON_GetObjectItem(zone_obj, "is_perimeter"));
-                vzone->is_interior =
-                    safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_interior"));
-                vzone->is_panic =
-                    safe_get_bool(cJSON_GetObjectItem(zone_obj, "is_panic"));
-                vzone->is_alert_sent = false;
-                z_count++;
-              }
-              break;
-            }
-            idx++;
-          }
-          cJSON_Delete(root);
-        }
-        free(data);
-      }
-    }
-
-    // Create virtual relay if configured and enabled
-    if (dev->virtual_relay_start > 0 && dev->enabled && r_count < MAX_RELAYS) {
-      // Re-parse relay details from JSON
-      if ((data = read_file("esphome.json"))) {
-        root = cJSON_Parse(data);
-        if (root) {
-          int idx = 0;
-          cJSON_ArrayForEach(item, root) {
-            if (idx == i) {
-              cJSON *relay_obj = cJSON_GetObjectItem(item, "relay");
-              if (relay_obj) {
-                relay_t *vrelay = &relays[r_count];
-                vrelay->id = dev->virtual_relay_start;
-                snprintf(vrelay->name, STR_MEDIUM, "%s", dev->friendly_name);
-                safe_strncpy(vrelay->description,
-                             cJSON_GetObjectItem(relay_obj, "description"),
-                             STR_MEDIUM);
-                vrelay->duration =
-                    safe_get_int(cJSON_GetObjectItem(relay_obj, "duration"), 0);
-                safe_strncpy(vrelay->location,
-                             cJSON_GetObjectItem(relay_obj, "location"),
-                             STR_MEDIUM);
-                safe_strncpy(vrelay->type,
-                             cJSON_GetObjectItem(relay_obj, "type"), STR_SMALL);
-                vrelay->is_repeat =
-                    safe_get_bool(cJSON_GetObjectItem(relay_obj, "is_repeat"));
-                vrelay->gpio = -1; // Virtual - no GPIO
-                r_count++;
-              }
-              break;
-            }
-            idx++;
-          }
-          cJSON_Delete(root);
-        }
-        free(data);
-      }
-    }
-  }
-
   storage_load_network();
+  storage_unlock();
 }
 
 // storage_mgr.c - This part is universal
 void storage_load_network(void) {
+  storage_lock();
   char *json_str = read_file("network.json");
   if (!json_str) {
     net_cfg.use_dhcp = true; // Fallback to DHCP
+    storage_unlock();
     return;
   }
 
@@ -1091,10 +1177,16 @@ void storage_load_network(void) {
   }
   if (json_str)
     free(json_str);
+  storage_unlock();
 }
 
 void storage_save_network(void) {
+  storage_lock();
   cJSON *root = cJSON_CreateObject();
+  if (!root) {
+    storage_unlock();
+    return;
+  }
   cJSON_AddBoolToObject(root, "use_dhcp", net_cfg.use_dhcp);
   cJSON_AddStringToObject(root, "ip", net_cfg.ip);
   cJSON_AddStringToObject(root, "netmask", net_cfg.netmask);
@@ -1109,9 +1201,11 @@ void storage_save_network(void) {
     free(rendered);
   }
   cJSON_Delete(root);
+  storage_unlock();
 }
 
 void storage_debug_print() {
+  storage_lock();
   printf("\n================= SYSTEM CONFIG DEBUG =================\n");
   printf("Account ID:    [%s]\n", config.account_id);
   printf("Owner Name:    [%s]\n", config.name);
@@ -1164,19 +1258,24 @@ void storage_debug_print() {
            relays[i].is_repeat ? "YES" : "NO");
   }
   printf("=======================================================\n\n");
+  storage_unlock();
 }
 
 // ========== ESPHome Device Management Functions ==========
 
 char *esphome_devices_to_json(void) {
+  storage_lock();
   cJSON *root = cJSON_CreateArray();
-  if (!root)
+  if (!root) {
+    storage_unlock();
     return NULL;
+  }
 
   for (int i = 0; i < esphome_count; i++) {
     cJSON *dev = cJSON_CreateObject();
     if (!dev) {
       cJSON_Delete(root);
+      storage_unlock();
       return NULL;
     }
     cJSON_AddStringToObject(dev, "hostname", esphome_devices[i].hostname);
@@ -1196,6 +1295,7 @@ char *esphome_devices_to_json(void) {
 
   char *json_str = cJSON_PrintUnformatted(root);
   cJSON_Delete(root);
+  storage_unlock();
   return json_str;
 }
 
@@ -1218,6 +1318,7 @@ int esphome_device_add(const char *hostname, uint16_t port,
     return -1;
   }
 
+  storage_lock();
   esphome_device_t *dev = &esphome_devices[esphome_count];
   strncpy(dev->hostname, hostname, STR_SMALL - 1);
   dev->hostname[STR_SMALL - 1] = '\0';
@@ -1234,7 +1335,9 @@ int esphome_device_add(const char *hostname, uint16_t port,
   dev->enabled = enabled;
 
   esphome_count++;
-  return esphome_devices_save();
+  int ret = esphome_devices_save();
+  storage_unlock();
+  return ret;
 }
 
 int esphome_device_update(const char *hostname, uint16_t port,
@@ -1245,6 +1348,7 @@ int esphome_device_update(const char *hostname, uint16_t port,
     return -1;
   }
 
+  storage_lock();
   for (int i = 0; i < esphome_count; i++) {
     if (strcmp(esphome_devices[i].hostname, hostname) == 0) {
       if (port > 0)
@@ -1267,9 +1371,12 @@ int esphome_device_update(const char *hostname, uint16_t port,
       if (virtual_relay_start >= 0)
         esphome_devices[i].virtual_relay_start = virtual_relay_start;
       esphome_devices[i].enabled = enabled;
-      return esphome_devices_save();
+      int ret = esphome_devices_save();
+      storage_unlock();
+      return ret;
     }
   }
+  storage_unlock();
   return -1; // Not found
 }
 
@@ -1278,6 +1385,7 @@ int esphome_device_delete(const char *hostname) {
     return -1;
   }
 
+  storage_lock();
   for (int i = 0; i < esphome_count; i++) {
     if (strcmp(esphome_devices[i].hostname, hostname) == 0) {
       // Shift remaining devices down
@@ -1286,9 +1394,12 @@ int esphome_device_delete(const char *hostname) {
       }
       esphome_count--;
       memset(&esphome_devices[esphome_count], 0, sizeof(esphome_device_t));
-      return esphome_devices_save();
+      int ret = esphome_devices_save();
+      storage_unlock();
+      return ret;
     }
   }
+  storage_unlock();
   return -1; // Not found
 }
 
@@ -1332,6 +1443,7 @@ bool user_authenticate_pin(const char *pin, user_t **out_user) {
     return false;
   }
 
+  storage_lock();
   for (int i = 0; i < u_count; i++) {
     user_t *user = &users[i];
 
@@ -1347,6 +1459,7 @@ bool user_authenticate_pin(const char *pin, user_t **out_user) {
       if (out_user) {
         *out_user = user;
       }
+      storage_unlock();
       return true;
     }
   }
@@ -1355,6 +1468,7 @@ bool user_authenticate_pin(const char *pin, user_t **out_user) {
   ESP_LOGW(TAG, "Authentication failed for PIN");
 #endif
 
+  storage_unlock();
   return false;
 }
 
@@ -1379,6 +1493,7 @@ esp_err_t user_set_password(int user_index, const char *new_pin) {
     return ESP_FAIL;
   }
 
+  storage_lock();
   user_t *user = &users[user_index];
 
   // Copy plaintext PIN
@@ -1389,5 +1504,6 @@ esp_err_t user_set_password(int user_index, const char *new_pin) {
   ESP_LOGI(TAG, "Set new password for user '%s'", user->name);
 #endif
 
+  storage_unlock();
   return ESP_OK;
 }

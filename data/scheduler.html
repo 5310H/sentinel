@@ -1,25 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scheduler - Sentinel</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
             background: white;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 30px;
         }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 12px;
+            }
+        }
+
         header {
             display: flex;
             justify-content: space-between;
@@ -28,6 +42,7 @@
             padding-bottom: 20px;
             border-bottom: 2px solid #e0e0e0;
         }
+
         h1 {
             color: #333;
             font-size: 28px;
@@ -35,6 +50,7 @@
             align-items: center;
             gap: 10px;
         }
+
         .status-indicator {
             width: 12px;
             height: 12px;
@@ -43,12 +59,19 @@
             animation: pulse 2s ease-in-out infinite;
             background: #4caf50;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -62,84 +85,96 @@
             align-items: center;
             gap: 8px;
         }
+
         .btn-primary {
             background: #667eea;
             color: white;
         }
+
         .btn-primary:hover {
             background: #5568d3;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
+
         .btn-success {
             background: #4caf50;
             color: white;
         }
+
         .btn-danger {
             background: #f44336;
             color: white;
         }
+
         .btn-warning {
             background: #ff9800;
             color: white;
         }
+
         .btn-small {
             padding: 6px 12px;
             font-size: 12px;
         }
-        
+
         .stats-panel {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
         }
-        
+
         .stat-item {
             text-align: center;
-            background: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 8px;
             padding: 15px;
             backdrop-filter: blur(10px);
         }
-        
+
         .stat-label {
-            color: rgba(255,255,255,0.9);
+            color: rgba(255, 255, 255, 0.9);
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 8px;
         }
-        
+
         .stat-value {
             color: white;
             font-size: 24px;
             font-weight: bold;
         }
-        
+
         .action-bar {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
-        
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
             background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
             overflow: hidden;
         }
-        
+
         th {
             background: #f8f9fa;
             padding: 12px;
@@ -148,16 +183,16 @@
             color: #333;
             border-bottom: 2px solid #e0e0e0;
         }
-        
+
         td {
             padding: 12px;
             border-bottom: 1px solid #e0e0e0;
         }
-        
+
         tr:hover {
             background: #f8f9fa;
         }
-        
+
         .badge {
             padding: 4px 8px;
             border-radius: 4px;
@@ -165,16 +200,52 @@
             font-weight: 600;
             text-transform: uppercase;
         }
-        .badge-interval { background: #e3f2fd; color: #1976d2; }
-        .badge-cron { background: #f3e5f5; color: #7b1fa2; }
-        .badge-once { background: #fff3e0; color: #f57c00; }
-        .badge-enabled { background: #e8f5e9; color: #2e7d32; }
-        .badge-disabled { background: #ffebee; color: #c62828; }
-        .badge-low { background: #e0e0e0; color: #616161; }
-        .badge-normal { background: #bbdefb; color: #1976d2; }
-        .badge-high { background: #ffccbc; color: #e64a19; }
-        .badge-critical { background: #ffcdd2; color: #c62828; }
-        
+
+        .badge-interval {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-cron {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .badge-once {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .badge-enabled {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .badge-disabled {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .badge-low {
+            background: #e0e0e0;
+            color: #616161;
+        }
+
+        .badge-normal {
+            background: #bbdefb;
+            color: #1976d2;
+        }
+
+        .badge-high {
+            background: #ffccbc;
+            color: #e64a19;
+        }
+
+        .badge-critical {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -184,10 +255,10 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
         }
-        
+
         .modal-content {
             background: white;
             margin: 5% auto;
@@ -195,9 +266,9 @@
             border-radius: 16px;
             width: 90%;
             max-width: 600px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
-        
+
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -206,12 +277,12 @@
             padding-bottom: 15px;
             border-bottom: 2px solid #e0e0e0;
         }
-        
+
         .modal-header h2 {
             color: #333;
             font-size: 24px;
         }
-        
+
         .close {
             font-size: 32px;
             font-weight: bold;
@@ -220,22 +291,22 @@
             line-height: 1;
             transition: color 0.2s;
         }
-        
+
         .close:hover {
             color: #333;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         label {
             display: block;
             margin-bottom: 8px;
             color: #555;
             font-weight: 600;
         }
-        
+
         input[type="text"],
         input[type="number"],
         select,
@@ -247,20 +318,20 @@
             font-size: 14px;
             transition: border-color 0.2s;
         }
-        
+
         input:focus,
         select:focus,
         textarea:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         .form-hint {
             font-size: 12px;
             color: #999;
             margin-top: 4px;
         }
-        
+
         .modal-footer {
             display: flex;
             justify-content: flex-end;
@@ -269,24 +340,25 @@
             padding-top: 20px;
             border-top: 1px solid #e0e0e0;
         }
-        
+
         .empty-state {
             text-align: center;
             padding: 60px 20px;
             color: #999;
         }
-        
+
         .empty-state-icon {
             font-size: 64px;
             margin-bottom: 20px;
         }
-        
+
         .action-buttons {
             display: flex;
             gap: 8px;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -327,7 +399,7 @@
             <button class="btn btn-primary" onclick="refreshTasks()">🔄 Refresh</button>
         </div>
 
-        <div id="tasksTable"></div>
+        <div class="table-wrapper" id="tasksTable"></div>
     </div>
 
     <!-- Create Task Modal -->
@@ -337,12 +409,12 @@
                 <h2>Create Scheduled Task</h2>
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
-            
+
             <div class="form-group">
                 <label for="taskName">Task Name</label>
                 <input type="text" id="taskName" placeholder="e.g., Morning Lights">
             </div>
-            
+
             <div class="form-group">
                 <label for="taskType">Schedule Type</label>
                 <select id="taskType" onchange="updateScheduleFields()">
@@ -351,26 +423,26 @@
                     <option value="2">One-Shot (Run once)</option>
                 </select>
             </div>
-            
+
             <div class="form-group" id="intervalField">
                 <label for="interval">Interval (seconds)</label>
-                <input type="number" id="interval" value="60" min="1">
+                <input type="number" id="interval" value="60" min="1" inputmode="numeric" pattern="[0-9]*">
                 <div class="form-hint">Run every N seconds</div>
             </div>
-            
+
             <div class="form-group" id="cronField" style="display:none;">
                 <label for="cron">Cron Expression</label>
                 <input type="text" id="cron" placeholder="0 6 * * *">
                 <div class="form-hint">Format: minute hour day month weekday</div>
                 <div class="form-hint">Examples: "0 6 * * *" (6 AM daily), "0 */2 * * *" (every 2 hours)</div>
             </div>
-            
+
             <div class="form-group" id="runTimeField" style="display:none;">
                 <label for="runTime">Run Time (Unix timestamp)</label>
-                <input type="number" id="runTime" placeholder="1706745600">
+                <input type="number" id="runTime" placeholder="1706745600" inputmode="numeric" pattern="[0-9]*">
                 <div class="form-hint">Unix timestamp when task should run once</div>
             </div>
-            
+
             <div class="form-group">
                 <label for="priority">Priority</label>
                 <select id="priority">
@@ -380,7 +452,7 @@
                     <option value="3">Critical</option>
                 </select>
             </div>
-            
+
             <div class="form-group">
                 <label for="actionType">Action</label>
                 <select id="actionType" onchange="updateActionFields()">
@@ -392,19 +464,21 @@
                     <option value="5">HTTP Request</option>
                 </select>
             </div>
-            
+
             <!-- Scene Recall -->
             <div class="form-group" id="sceneFields" style="display:none;">
                 <label for="sceneId">Scene ID</label>
-                <input type="number" id="sceneId" min="0" max="255" placeholder="1">
+                <input type="number" id="sceneId" min="0" max="255" placeholder="1" inputmode="numeric"
+                    pattern="[0-9]*">
                 <div class="form-hint">Zigbee scene ID to recall (0-255)</div>
             </div>
-            
+
             <!-- Group Control -->
             <div id="groupFields" style="display:none;">
                 <div class="form-group">
                     <label for="groupId">Group ID</label>
-                    <input type="number" id="groupId" min="0" max="255" placeholder="1">
+                    <input type="number" id="groupId" min="0" max="255" placeholder="1" inputmode="numeric"
+                        pattern="[0-9]*">
                     <div class="form-hint">Zigbee group ID to control (0-255)</div>
                 </div>
                 <div class="form-group">
@@ -416,16 +490,18 @@
                 </div>
                 <div class="form-group">
                     <label for="groupLevel">Level (optional)</label>
-                    <input type="number" id="groupLevel" min="0" max="254" placeholder="0">
+                    <input type="number" id="groupLevel" min="0" max="254" placeholder="0" inputmode="numeric"
+                        pattern="[0-9]*">
                     <div class="form-hint">Brightness level (0-254, 0 = skip)</div>
                 </div>
             </div>
-            
+
             <!-- Relay Control -->
             <div id="relayFields" style="display:none;">
                 <div class="form-group">
                     <label for="relayId">Relay ID</label>
-                    <input type="number" id="relayId" min="0" max="15" placeholder="1">
+                    <input type="number" id="relayId" min="0" max="15" placeholder="1" inputmode="numeric"
+                        pattern="[0-9]*">
                     <div class="form-hint">Relay number to control</div>
                 </div>
                 <div class="form-group">
@@ -436,7 +512,7 @@
                     </select>
                 </div>
             </div>
-            
+
             <!-- MQTT Publish -->
             <div id="mqttFields" style="display:none;">
                 <div class="form-group">
@@ -450,12 +526,12 @@
                     <div class="form-hint">Message payload (JSON or plain text)</div>
                 </div>
             </div>
-            
+
             <!-- HTTP Request -->
             <div id="httpFields" style="display:none;">
                 <div class="form-group">
                     <label for="httpUrl">URL</label>
-                    <input type="text" id="httpUrl" placeholder="http://192.168.1.100/api/action">
+                    <input type="text" id="httpUrl" placeholder="http://192.168.1.100/api/action" inputmode="url">
                     <div class="form-hint">HTTP endpoint to call</div>
                 </div>
                 <div class="form-group">
@@ -467,7 +543,7 @@
                     </select>
                 </div>
             </div>
-            
+
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="createTask()">Create Task</button>
                 <button class="btn" onclick="closeModal()" style="background:#e0e0e0;color:#333;">Cancel</button>
@@ -477,16 +553,16 @@
 
     <script>
         let tasks = [];
-        
+
         // Type names
         const typeNames = ['Interval', 'Cron', 'Once', 'Sunrise', 'Sunset'];
         const priorityNames = ['Low', 'Normal', 'High', 'Critical'];
-        
+
         // Load tasks on page load
         document.addEventListener('DOMContentLoaded', () => {
             refreshTasks();
         });
-        
+
         function refreshTasks() {
             fetch('/api/scheduler/tasks')
                 .then(res => res.json())
@@ -497,7 +573,7 @@
                 })
                 .catch(err => console.error('Failed to load tasks:', err));
         }
-        
+
         function updateStats() {
             document.getElementById('totalTasks').textContent = tasks.length;
             document.getElementById('activeTasks').textContent = tasks.filter(t => t.enabled).length;
@@ -505,10 +581,10 @@
             document.getElementById('cronTasks').textContent = tasks.filter(t => t.type === 1).length;
             document.getElementById('onceTasks').textContent = tasks.filter(t => t.type === 2).length;
         }
-        
+
         function renderTasks() {
             const container = document.getElementById('tasksTable');
-            
+
             if (tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -519,7 +595,7 @@
                 `;
                 return;
             }
-            
+
             let html = `
                 <table>
                     <thead>
@@ -537,14 +613,14 @@
                     </thead>
                     <tbody>
             `;
-            
+
             tasks.forEach(task => {
                 const typeBadge = `<span class="badge badge-${typeNames[task.type].toLowerCase()}">${typeNames[task.type]}</span>`;
                 const priorityBadge = `<span class="badge badge-${priorityNames[task.priority].toLowerCase()}">${priorityNames[task.priority]}</span>`;
-                const statusBadge = task.enabled ? 
-                    '<span class="badge badge-enabled">Enabled</span>' : 
+                const statusBadge = task.enabled ?
+                    '<span class="badge badge-enabled">Enabled</span>' :
                     '<span class="badge badge-disabled">Disabled</span>';
-                
+
                 let scheduleInfo = '';
                 if (task.type === 0) {
                     scheduleInfo = `Every ${task.interval}s`;
@@ -553,7 +629,7 @@
                 } else if (task.type === 2) {
                     scheduleInfo = formatTimestamp(task.run_time);
                 }
-                
+
                 html += `
                     <tr>
                         <td><strong>${task.name}</strong><br><small>ID: ${task.id}</small></td>
@@ -577,37 +653,37 @@
                     </tr>
                 `;
             });
-            
+
             html += '</tbody></table>';
             container.innerHTML = html;
         }
-        
+
         function formatTimestamp(ts) {
             if (ts === 0) return 'N/A';
             const date = new Date(ts * 1000);
-            return date.toLocaleString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
             });
         }
-        
+
         function showCreateModal() {
             document.getElementById('createModal').style.display = 'block';
         }
-        
+
         function closeModal() {
             document.getElementById('createModal').style.display = 'none';
         }
-        
+
         function updateScheduleFields() {
             const type = parseInt(document.getElementById('taskType').value);
             document.getElementById('intervalField').style.display = type === 0 ? 'block' : 'none';
             document.getElementById('cronField').style.display = type === 1 ? 'block' : 'none';
             document.getElementById('runTimeField').style.display = type === 2 ? 'block' : 'none';
         }
-        
+
         function updateActionFields() {
             const actionType = parseInt(document.getElementById('actionType').value);
             document.getElementById('sceneFields').style.display = actionType === 1 ? 'block' : 'none';
@@ -616,20 +692,20 @@
             document.getElementById('mqttFields').style.display = actionType === 4 ? 'block' : 'none';
             document.getElementById('httpFields').style.display = actionType === 5 ? 'block' : 'none';
         }
-        
+
         function createTask() {
             const name = document.getElementById('taskName').value.trim();
             const type = parseInt(document.getElementById('taskType').value);
             const priority = parseInt(document.getElementById('priority').value);
             const actionType = parseInt(document.getElementById('actionType').value);
-            
+
             if (!name) {
                 alert('Please enter a task name');
                 return;
             }
-            
+
             const payload = { name, type, priority };
-            
+
             if (type === 0) {
                 payload.interval = parseInt(document.getElementById('interval').value);
             } else if (type === 1) {
@@ -641,11 +717,11 @@
             } else if (type === 2) {
                 payload.run_time = parseInt(document.getElementById('runTime').value);
             }
-            
+
             // Build action object
             if (actionType !== 0) {
                 payload.action = { type: actionType };
-                
+
                 if (actionType === 1) { // Scene Recall
                     payload.action.scene_id = parseInt(document.getElementById('sceneId').value);
                 } else if (actionType === 2) { // Group Control
@@ -663,97 +739,97 @@
                     payload.action.method = document.getElementById('httpMethod').value;
                 }
             }
-            
+
             fetch('/api/scheduler/tasks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    closeModal();
-                    refreshTasks();
-                    // Reset form
-                    document.getElementById('taskName').value = '';
-                    document.getElementById('interval').value = '60';
-                    document.getElementById('cron').value = '';
-                    document.getElementById('runTime').value = '';
-                    document.getElementById('actionType').value = '0';
-                    updateActionFields();
-                } else {
-                    alert('Failed to create task: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => {
-                console.error('Create failed:', err);
-                alert('Failed to create task');
-            });
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        closeModal();
+                        refreshTasks();
+                        // Reset form
+                        document.getElementById('taskName').value = '';
+                        document.getElementById('interval').value = '60';
+                        document.getElementById('cron').value = '';
+                        document.getElementById('runTime').value = '';
+                        document.getElementById('actionType').value = '0';
+                        updateActionFields();
+                    } else {
+                        alert('Failed to create task: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Create failed:', err);
+                    alert('Failed to create task');
+                });
         }
-        
+
         function toggleTask(id, enable) {
             fetch(`/api/scheduler/tasks/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled: enable })
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    refreshTasks();
-                } else {
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        refreshTasks();
+                    } else {
+                        alert('Failed to update task');
+                    }
+                })
+                .catch(err => {
+                    console.error('Toggle failed:', err);
                     alert('Failed to update task');
-                }
-            })
-            .catch(err => {
-                console.error('Toggle failed:', err);
-                alert('Failed to update task');
-            });
+                });
         }
-        
+
         function triggerTask(id) {
             if (!confirm('Manually trigger this task now?')) return;
-            
+
             fetch(`/api/scheduler/tasks/${id}/trigger`, {
                 method: 'POST'
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Task triggered successfully');
-                    setTimeout(refreshTasks, 1000);
-                } else {
-                    alert('Failed to trigger task: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(err => {
-                console.error('Trigger failed:', err);
-                alert('Failed to trigger task');
-            });
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Task triggered successfully');
+                        setTimeout(refreshTasks, 1000);
+                    } else {
+                        alert('Failed to trigger task: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Trigger failed:', err);
+                    alert('Failed to trigger task');
+                });
         }
-        
+
         function deleteTask(id) {
             if (!confirm('Delete this task? This cannot be undone.')) return;
-            
+
             fetch(`/api/scheduler/tasks/${id}`, {
                 method: 'DELETE'
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    refreshTasks();
-                } else {
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        refreshTasks();
+                    } else {
+                        alert('Failed to delete task');
+                    }
+                })
+                .catch(err => {
+                    console.error('Delete failed:', err);
                     alert('Failed to delete task');
-                }
-            })
-            .catch(err => {
-                console.error('Delete failed:', err);
-                alert('Failed to delete task');
-            });
+                });
         }
-        
+
         // Close modal on outside click
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modal = document.getElementById('createModal');
             if (event.target == modal) {
                 closeModal();
@@ -761,4 +837,5 @@
         }
     </script>
 </body>
+
 </html>

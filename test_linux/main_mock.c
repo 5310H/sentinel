@@ -228,19 +228,8 @@ void esphome_reject_handler(struct mg_connection *c, int ev, void *ev_data) {
   }
 }
 void web_handler(struct mg_connection *c, int ev, void *ev_data) {
-  // Handle TLS initialization for HTTPS connections
-  if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
-    // fn_data is non-NULL for HTTPS connections (see listener setup)
-    struct mg_tls_opts opts = {
-        .cert =
-            mg_str("./server.pem"), // Certificate file path for Linux testing
-        .key = mg_str(
-            "./server.pem"), // Key file (same file contains both cert and key)
-    };
-    mg_tls_init(c, &opts);
-  }
   // Handle ESPHome protocol connections (reject them gracefully)
-  else if (ev == MG_EV_READ) {
+  if (ev == MG_EV_READ) {
     // Check if this looks like an ESPHome connection (not HTTP)
     // ESPHome devices may be misconfigured to connect to our server as their
     // API endpoint, but we should be connecting TO them, not receiving
@@ -1988,9 +1977,10 @@ int main(void) {
   // HTTP listener for compatibility
   mg_http_listen(&mgr, "http://0.0.0.0:8000", web_handler, NULL);
 
-  // HTTPS listener on port 8443 (higher port for testing, pass non-NULL fn_data
-  // for TLS init)
-  mg_http_listen(&mgr, "https://0.0.0.0:8443", web_handler, (void *)1);
+  // HTTPS listener on port 8443 (Let Mongoose handle TLS directly via URL
+  // parameters)
+  mg_http_listen(&mgr, "https://0.0.0.0:8443?cert=server.pem&key=server.pem",
+                 web_handler, NULL);
 
   // ESPHome Native API listener on port 6053 (reject ESPHome connections
   // gracefully)

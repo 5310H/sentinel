@@ -38,6 +38,12 @@ typedef esp_err_t status_t;
 typedef int status_t;
 #endif
 
+/**
+ * Thread-safety locks for accessing configuration structures safely
+ */
+void storage_lock(void);
+void storage_unlock(void);
+
 // 1. Constants
 #define STR_SMALL 64
 #define STR_MEDIUM 128
@@ -235,6 +241,9 @@ typedef struct {
   int entry_delay;
   int exit_delay;
   int cancel_delay;
+  int watchdog_esphome_sec;
+  int watchdog_camera_fails;
+  int watchdog_network_sec;
 } config_t;
 
 // 3. Accessor Functions

@@ -134,6 +134,12 @@ void camera_zones_poll_all(void) {
       continue;
     }
 
+    // Rate limit HTTP polling to once every 2 seconds to prevent network stack
+    // crashing
+    if (now - camera_zones[i].last_poll < 2) {
+      continue;
+    }
+
     int camera_id = camera_zones[i].camera_id;
     int zone_index = camera_zones[i].zone_index;
 

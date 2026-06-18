@@ -14,6 +14,16 @@ void user_add(const char *name, const char *pin, const char *phone,
               const char *email, int notify, bool is_admin,
               const char *emergency_pin) {
   int count = storage_get_user_count();
+
+  // Prevent duplicate usernames
+  for (int i = 0; i < count; i++) {
+    if (strcmp(storage_get_user(i)->name, name) == 0) {
+      printf("[%s] Error: User '%s' already exists. Aborting add.\n", TAG,
+             name);
+      return;
+    }
+  }
+
   if (count < MAX_USERS) {
     user_t *u = storage_get_user(count);
     memset(u, 0, sizeof(user_t));
@@ -140,8 +150,12 @@ void user_list(void) {
 // Helper for the Web UI API
 char *users_to_json(void) {
   cJSON *root = cJSON_CreateArray();
+  if (!root)
+    return NULL;
   for (int i = 0; i < storage_get_user_count(); i++) {
     cJSON *u = cJSON_CreateObject();
+    if (!u)
+      continue;
     cJSON_AddStringToObject(u, "name", storage_get_user(i)->name);
     cJSON_AddStringToObject(u, "email", storage_get_user(i)->email);
     cJSON_AddNumberToObject(u, "notify", storage_get_user(i)->notify);

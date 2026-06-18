@@ -48,6 +48,13 @@ int s_arm_state = 0; // 0: Disarmed, 1: Exit, 2: Armed, 3: Entry, 4: Alarmed
 int s_timer = 0;
 int s_chime_timer = 0;
 arm_mode_t s_current_mode = ARM_AWAY;
+static uint32_t s_armed_ticks = 0; // Tracks ticks since entering Armed state
+static uint32_t s_esphome_offline_ticks[32] = {0}; // Watchdog counters
+static uint32_t s_camera_offline_ticks[CAMERA_MAX_DEVICES] = {
+    0};                                      // Camera watchdog
+static uint32_t s_network_offline_ticks = 0; // Network watchdog
+
+extern bool g_network_up;
 
 char s_violation_name[64] = "None";
 char s_violation_type[32] = "None";
@@ -101,10 +108,14 @@ strcmp(storage_get_relay(r)->type, "siren") == 0) {
 // --- HELPER FUNCTIONS ---
 
 static int get_zone_index_by_name(const char *name) {
+  storage_lock();
   for (int i = 0; i < storage_get_zone_count(); i++) {
-    if (strcmp(storage_get_zone(i)->name, name) == 0)
+    if (strcmp(storage_get_zone(i)->name, name) == 0) {
+      storage_unlock();
       return i;
+    }
   }
+  storage_unlock();
   return -1;
 }
 
@@ -126,7 +137,7 @@ void engine_init(void) {
 
   // Initialize virtual zone monitoring
   esphome_zones_init();
-  // tuya_zones_init(); // Uncomment when Tuya zones are implemented
+  tuya_zones_init();
 
   // Restore previous arm state from NVS (survives reboot)
   s_arm_state = engine_restore_arm_state();
@@ -176,23 +187,30 @@ const char *engine_get_user_totp_secret(const char *username) {
   if (!username)
     return NULL;
 
+  static char safe_secret[STR_MEDIUM] = {0};
+  bool found = false;
+
+  storage_lock();
   // Check users array
   for (int i = 0; i < storage_get_user_count() && i < MAX_USERS; i++) {
     if (strcmp(storage_get_user(i)->name, username) == 0) {
       // Return secret if set, otherwise NULL
       if (storage_get_user(i)->totp_secret[0] != '\0') {
-        return storage_get_user(i)->totp_secret;
+        strncpy(safe_secret, storage_get_user(i)->totp_secret, STR_MEDIUM - 1);
+        safe_secret[STR_MEDIUM - 1] = '\0';
+        found = true;
       }
-      return NULL;
+      break;
     }
   }
+  storage_unlock();
 
   // Master user uses default secret if no per-user secret
   if (strcmp(username, "Master") == 0) {
-    return NULL; // Or return default secret if desired
+    return NULL;
   }
 
-  return NULL;
+  return found ? safe_secret : NULL;
 }
 
 keypad_result_t engine_check_keypad(const char *input_pin) {
@@ -224,8 +242,12 @@ keypad_result_t engine_check_keypad(const char *input_pin) {
     auth_state.failed_attempts = 0;
   }
 
+  storage_lock();
+  bool is_master = (strcmp(input_pin, storage_get_config()->pin) == 0);
+  storage_unlock();
+
   // Try master PIN
-  if (strcmp(input_pin, storage_get_config()->pin) == 0) {
+  if (is_master) {
     res.authenticated = true;
     res.is_admin = true;
     strcpy(res.name, "Master");
@@ -285,6 +307,7 @@ void trigger_local_hardware(zone_t *z) {
     return;
   }
   LOG_WARN(TAG, "Triggering hardware for zone: %s", z->name);
+  storage_lock();
   for (int r = 0; r < storage_get_relay_count() && r < MAX_RELAYS; r++) {
     relay_type_t relay_type =
         relay_type_from_string(storage_get_relay(r)->type);
@@ -294,12 +317,16 @@ void trigger_local_hardware(zone_t *z) {
       }
     }
   }
+  storage_unlock();
   hal_set_siren(true);
 }
 
 void process_alarm_event(int index) {
-  if (index < 0 || index >= storage_get_zone_count() || index >= MAX_ZONES)
+  storage_lock();
+  if (index < 0 || index >= storage_get_zone_count() || index >= MAX_ZONES) {
+    storage_unlock();
     return;
+  }
 
   if (!storage_get_zone(index)->is_alert_sent) {
     printf("[%s] ALERT! %s violated.\n", TAG, storage_get_zone(index)->name);
@@ -327,6 +354,7 @@ void process_alarm_event(int index) {
       ESP_LOGI(TAG, "Captured %d alarm snapshot(s)", snapshots_captured);
     }
   }
+  storage_unlock();
 }
 
 void engine_trigger_alarm(int trigger_index) {
@@ -340,9 +368,12 @@ void engine_trigger_alarm(int trigger_index) {
 }
 
 void engine_process_zone_trip(int i) {
+  storage_lock();
   if (i < 0 ||
-      (i >= storage_get_zone_count() && !camera_zones_is_camera_zone(i)))
+      (i >= storage_get_zone_count() && !camera_zones_is_camera_zone(i))) {
+    storage_unlock();
     return;
+  }
 
   // Handle camera zones differently
   if (camera_zones_is_camera_zone(i)) {
@@ -351,6 +382,7 @@ void engine_process_zone_trip(int i) {
     if (s_arm_state == 2 || s_arm_state == 3) { // Armed away or entry
       engine_trigger_alarm(i);
     }
+    storage_unlock();
     return;
   }
 
@@ -363,6 +395,7 @@ void engine_process_zone_trip(int i) {
     if (ztype == ZONE_TYPE_FIRE || ztype == ZONE_TYPE_PANIC) {
       engine_trigger_alarm(i);
     }
+    storage_unlock();
     return;
   }
 
@@ -380,6 +413,16 @@ void engine_process_zone_trip(int i) {
 
   // ARMING LOGIC (Entry Delay vs Instant Alarm)
   if (s_arm_state == 2) {
+    // Grace period: Ignore interior sensors for the first 5 seconds after
+    // arming to allow long-hold motion sensors (like ESPHome) to clear. (100
+    // ticks @ 50ms = 5s)
+    if (storage_get_zone(i)->is_interior && s_armed_ticks < 100) {
+      LOG_INFO(TAG, "Ignoring interior trip on %s (Grace period settling)",
+               storage_get_zone(i)->name);
+      storage_unlock();
+      return;
+    }
+
     bool monitor = false;
     if (s_current_mode == ARM_AWAY || s_current_mode == ARM_VACATION)
       monitor = true;
@@ -407,14 +450,15 @@ void engine_process_zone_trip(int i) {
       }
     }
   }
+  storage_unlock();
 }
 
 // --- CORE TICK LOGIC ---
 
 void engine_tick(void) {
   static uint32_t heartbeat = 0;
-  if (++heartbeat % 6000 ==
-      0) { // Every ~60 seconds (assuming 10ms tick in mock)
+  if (++heartbeat % 1200 ==
+      0) { // Every ~60 seconds (assuming 50ms tick on ESP32)
     LOG_INFO(TAG, "Engine heartbeat - State: %d, Mode: %d", s_arm_state,
              s_current_mode);
   }
@@ -427,6 +471,12 @@ void engine_tick(void) {
       // Log significant state changes
       if (status.tamper_detected) {
         LOG_ERROR(TAG, "TAMPER ALERT - Case opened!");
+        if (s_arm_state == 2 || s_arm_state == 3) {
+          snprintf(s_violation_name, sizeof(s_violation_name),
+                   "Panel Case Tamper");
+          strncpy(s_violation_type, "Tamper", sizeof(s_violation_type) - 1);
+          engine_trigger_alarm(0); // Trigger physical alarm immediately
+        }
       }
       if (status.on_backup_power) {
         LOG_WARN(TAG, "System on backup power - %u ms",
@@ -459,6 +509,101 @@ void engine_tick(void) {
     }
   }
 
+  // 1b. ESPHome Connection Watchdog & Armed Ticks
+  if (s_arm_state == 2 || s_arm_state == 3) {
+    s_armed_ticks++;
+
+    // ESPHome Watchdog
+    storage_lock();
+    for (int i = 0; i < storage_get_esphome_count() && i < 32; i++) {
+      esphome_device_t *dev = storage_get_esphome_device(i);
+      if (dev && dev->enabled) {
+        if (!dev->is_connected) {
+          s_esphome_offline_ticks[i]++;
+          uint32_t esphome_timeout_ticks =
+              storage_get_config()->watchdog_esphome_sec *
+              20; // 20 ticks per sec
+          if (s_esphome_offline_ticks[i] == esphome_timeout_ticks) {
+            LOG_ERROR(TAG,
+                      "ESPHome device '%s' dropped offline while armed! "
+                      "Triggering Tamper Alarm.",
+                      dev->friendly_name);
+            snprintf(s_violation_name, sizeof(s_violation_name), "%s (Offline)",
+                     dev->friendly_name);
+            strncpy(s_violation_type, "Tamper", sizeof(s_violation_type) - 1);
+
+            // Find the virtual zone index to trigger the alarm
+            int trigger_idx = 0;
+            for (int z = 0; z < storage_get_zone_count(); z++) {
+              if (storage_get_zone(z)->id == dev->virtual_zone_start) {
+                trigger_idx = z;
+                break;
+              }
+            }
+            engine_trigger_alarm(trigger_idx);
+          }
+        } else {
+          s_esphome_offline_ticks[i] = 0;
+        }
+      }
+    }
+    storage_unlock();
+
+    // 1c. Camera Connection Watchdog
+    storage_lock();
+    for (int i = 0; i < camera_mgr_get_count() && i < CAMERA_MAX_DEVICES; i++) {
+      const camera_device_t *cam = camera_mgr_get_device(i);
+      if (cam && cam->enabled) {
+        // If a camera fails 3 consecutive health checks (approx 90 seconds if
+        // checked every 30s)
+        if (cam->consecutive_failures >=
+            storage_get_config()->watchdog_camera_fails) {
+          s_camera_offline_ticks[i]++;
+          if (s_camera_offline_ticks[i] ==
+              1) { // Trigger only once when it crosses threshold
+            LOG_ERROR(TAG,
+                      "Camera '%s' dropped offline while armed! Triggering "
+                      "Tamper Alarm.",
+                      cam->friendly_name);
+            snprintf(s_violation_name, sizeof(s_violation_name), "%s (Offline)",
+                     cam->friendly_name);
+            strncpy(s_violation_type, "Tamper", sizeof(s_violation_type) - 1);
+            engine_trigger_alarm(0); // Trigger physical alarm immediately
+          }
+        } else {
+          s_camera_offline_ticks[i] = 0;
+        }
+      }
+    }
+    storage_unlock();
+
+    // 1d. Network Connection Watchdog (Ethernet Cable Cut)
+    if (!g_network_up) {
+      s_network_offline_ticks++;
+      storage_lock();
+      uint32_t net_timeout_ticks =
+          storage_get_config()->watchdog_network_sec * 20;
+      storage_unlock();
+      if (s_network_offline_ticks == net_timeout_ticks) {
+        LOG_ERROR(TAG, "Main Network Connection lost while armed! Triggering "
+                       "Tamper Alarm.");
+        snprintf(s_violation_name, sizeof(s_violation_name),
+                 "Network Connection");
+        strncpy(s_violation_type, "Tamper", sizeof(s_violation_type) - 1);
+        engine_trigger_alarm(
+            0); // Trigger physical alarm immediately (local siren)
+      }
+    } else {
+      s_network_offline_ticks = 0;
+    }
+
+  } else {
+    s_armed_ticks = 0;
+    memset(s_esphome_offline_ticks, 0, sizeof(s_esphome_offline_ticks));
+    memset(s_camera_offline_ticks, 0, sizeof(s_camera_offline_ticks));
+    s_network_offline_ticks = 0;
+  }
+
   // 2. State Transitions
   if (s_arm_state == 1 && s_timer == 0) {
     s_arm_state = 2;          // Exit -> Armed
@@ -479,10 +624,13 @@ void engine_ui_arm(arm_mode_t mode) {
   if (s_arm_state == 0) {
     s_current_mode = mode;
     s_arm_state = 1;
-    s_timer = storage_get_config()->exit_delay;
+    storage_lock();
+    int exit_delay_val = storage_get_config()->exit_delay;
+    storage_unlock();
+    s_timer = exit_delay_val;
     engine_save_arm_state(1); // Persist to NVS
     LOG_INFO(TAG, "Arming system (mode: %d, exit delay: %d)", mode,
-             storage_get_config()->exit_delay);
+             exit_delay_val);
   }
 }
 
@@ -494,10 +642,12 @@ void engine_ui_disarm(void) {
   engine_save_arm_state(0); // Persist to NVS
 
   hal_set_siren(false);
+  storage_lock();
   for (int i = 0; i < storage_get_zone_count(); i++)
     storage_get_zone(i)->is_alert_sent = false;
   for (int r = 0; r < storage_get_relay_count(); r++)
     hal_set_relay(storage_get_relay(r)->gpio, false);
+  storage_unlock();
 }
 
 int engine_get_arm_state(void) { return s_arm_state; }
@@ -508,6 +658,7 @@ const char *engine_get_violation_type(void) { return s_violation_type; }
 
 bool is_ready(void) {
   // A system is "Ready" to arm only if no perimeter zones are tripped
+  storage_lock();
   for (int i = 0; i < storage_get_zone_count() && i < MAX_ZONES; i++) {
     if (storage_get_zone(i)->is_perimeter) {
       bool zone_tripped = false;
@@ -531,10 +682,12 @@ bool is_ready(void) {
       }
 
       if (zone_tripped) {
+        storage_unlock();
         return false; // Found a door/window open
       }
     }
   }
+  storage_unlock();
   return true; // All clear
 }
 
@@ -544,9 +697,10 @@ int engine_get_arm_state_safe(void) {
   int state = s_arm_state;
 #ifdef ESP_PLATFORM
   if (engine_state_mutex != NULL) {
-    if (xSemaphoreTake(engine_state_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (xSemaphoreTakeRecursive(engine_state_mutex, pdMS_TO_TICKS(50)) ==
+        pdTRUE) {
       state = s_arm_state;
-      xSemaphoreGive(engine_state_mutex);
+      xSemaphoreGiveRecursive(engine_state_mutex);
     }
   }
 #endif
@@ -558,9 +712,10 @@ void engine_set_arm_state_safe(int state) {
 
 #ifdef ESP_PLATFORM
   if (engine_state_mutex != NULL) {
-    if (xSemaphoreTake(engine_state_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (xSemaphoreTakeRecursive(engine_state_mutex, pdMS_TO_TICKS(50)) ==
+        pdTRUE) {
       s_arm_state = state;
-      xSemaphoreGive(engine_state_mutex);
+      xSemaphoreGiveRecursive(engine_state_mutex);
     }
   } else {
     s_arm_state = state;
@@ -636,9 +791,10 @@ int engine_get_timer_safe(void) {
   int timer = s_timer;
 #ifdef ESP_PLATFORM
   if (engine_state_mutex != NULL) {
-    if (xSemaphoreTake(engine_state_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (xSemaphoreTakeRecursive(engine_state_mutex, pdMS_TO_TICKS(50)) ==
+        pdTRUE) {
       timer = s_timer;
-      xSemaphoreGive(engine_state_mutex);
+      xSemaphoreGiveRecursive(engine_state_mutex);
     }
   }
 #endif
@@ -648,9 +804,10 @@ int engine_get_timer_safe(void) {
 void engine_set_timer_safe(int value) {
 #ifdef ESP_PLATFORM
   if (engine_state_mutex != NULL) {
-    if (xSemaphoreTake(engine_state_mutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (xSemaphoreTakeRecursive(engine_state_mutex, pdMS_TO_TICKS(50)) ==
+        pdTRUE) {
       s_timer = value;
-      xSemaphoreGive(engine_state_mutex);
+      xSemaphoreGiveRecursive(engine_state_mutex);
     }
   } else {
     s_timer = value;

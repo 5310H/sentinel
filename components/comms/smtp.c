@@ -38,6 +38,18 @@ static int is_type(const char *val, const char *type) {
 
 static void smtp_execute_send(config_t *config, const char *target_email,
                               const char *subject, const char *body) {
+  char smtp_server[64] = {0};
+  char smtp_user[64] = {0};
+  char smtp_pass[64] = {0};
+  int smtp_port = 25;
+
+  storage_lock();
+  strncpy(smtp_server, config->smtp_server, sizeof(smtp_server) - 1);
+  strncpy(smtp_user, config->smtp_user, sizeof(smtp_user) - 1);
+  strncpy(smtp_pass, config->smtp_pass, sizeof(smtp_pass) - 1);
+  smtp_port = config->smtp_port;
+  storage_unlock();
+
 #ifdef ESP_PLATFORM
   esp_tls_cfg_t cfg = {
       .crt_bundle_attach = esp_crt_bundle_attach,
@@ -51,16 +63,15 @@ static void smtp_execute_send(config_t *config, const char *target_email,
     return;
   }
 
-  int ret = esp_tls_conn_new_sync(storage_get_config()->smtp_server,
-                                  strlen(storage_get_config()->smtp_server),
-                                  storage_get_config()->smtp_port, &cfg, tls);
+  int ret = esp_tls_conn_new_sync(smtp_server, strlen(smtp_server), smtp_port,
+                                  &cfg, tls);
 
   if (ret == 1) { // Success
     ESP_LOGI(TAG, "Secure tunnel opened using Certificate Bundle");
 
     char buf[1024];
     char b64[256];
-    size_t n;
+    size_t n = 0;
     int len;
 
     // 1. Read Greeting
@@ -82,11 +93,11 @@ static void smtp_execute_send(config_t *config, const char *target_email,
       goto smtp_err;
 
     // 4. Username
-    mbedtls_base64_encode(
-        (unsigned char *)b64, sizeof(b64), &n,
-        (const unsigned char *)storage_get_config()->smtp_user,
-        strlen(storage_get_config()->smtp_user));
-    b64[n] = 0;
+    if (mbedtls_base64_encode((unsigned char *)b64, sizeof(b64) - 1, &n,
+                              (const unsigned char *)smtp_user,
+                              strlen(smtp_user)) != 0)
+      goto smtp_err;
+    b64[n < sizeof(b64) ? n : sizeof(b64) - 1] = '\0';
     snprintf(buf, sizeof(buf), "%s\r\n", b64);
     if (esp_tls_conn_write(tls, buf, strlen(buf)) < 0)
       goto smtp_err;
@@ -94,11 +105,11 @@ static void smtp_execute_send(config_t *config, const char *target_email,
       goto smtp_err;
 
     // 5. Password
-    mbedtls_base64_encode(
-        (unsigned char *)b64, sizeof(b64), &n,
-        (const unsigned char *)storage_get_config()->smtp_pass,
-        strlen(storage_get_config()->smtp_pass));
-    b64[n] = 0;
+    if (mbedtls_base64_encode((unsigned char *)b64, sizeof(b64) - 1, &n,
+                              (const unsigned char *)smtp_pass,
+                              strlen(smtp_pass)) != 0)
+      goto smtp_err;
+    b64[n < sizeof(b64) ? n : sizeof(b64) - 1] = '\0';
     snprintf(buf, sizeof(buf), "%s\r\n", b64);
     if (esp_tls_conn_write(tls, buf, strlen(buf)) < 0)
       goto smtp_err;
@@ -106,8 +117,7 @@ static void smtp_execute_send(config_t *config, const char *target_email,
       goto smtp_err;
 
     // 6. MAIL FROM
-    snprintf(buf, sizeof(buf), "MAIL FROM:<%s>\r\n",
-             storage_get_config()->smtp_user);
+    snprintf(buf, sizeof(buf), "MAIL FROM:<%s>\r\n", smtp_user);
     if (esp_tls_conn_write(tls, buf, strlen(buf)) < 0)
       goto smtp_err;
     if ((len = esp_tls_conn_read(tls, buf, sizeof(buf) - 1)) < 0)
@@ -130,7 +140,7 @@ static void smtp_execute_send(config_t *config, const char *target_email,
     // 9. Payload
     snprintf(buf, sizeof(buf),
              "To: %s\r\nFrom: %s\r\nSubject: %s\r\n\r\n%s\r\n.\r\n",
-             target_email, storage_get_config()->smtp_user, subject, body);
+             target_email, smtp_user, subject, body);
     if (esp_tls_conn_write(tls, buf, strlen(buf)) < 0)
       goto smtp_err;
     if ((len = esp_tls_conn_read(tls, buf, sizeof(buf) - 1)) < 0)
@@ -164,13 +174,12 @@ static void smtp_execute_send(config_t *config, const char *target_email,
   char url[256];
   curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/certs/ca-certificates.crt");
 
-  snprintf(url, sizeof(url), "smtps://%s:%d", storage_get_config()->smtp_server,
-           storage_get_config()->smtp_port);
+  snprintf(url, sizeof(url), "smtps://%s:%d", smtp_server, smtp_port);
   curl_easy_setopt(curl, CURLOPT_URL, url);
-  curl_easy_setopt(curl, CURLOPT_USERNAME, storage_get_config()->smtp_user);
-  curl_easy_setopt(curl, CURLOPT_PASSWORD, storage_get_config()->smtp_pass);
+  curl_easy_setopt(curl, CURLOPT_USERNAME, smtp_user);
+  curl_easy_setopt(curl, CURLOPT_PASSWORD, smtp_pass);
   curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
-  curl_easy_setopt(curl, CURLOPT_MAIL_FROM, storage_get_config()->smtp_user);
+  curl_easy_setopt(curl, CURLOPT_MAIL_FROM, smtp_user);
 
   recipients = curl_slist_append(recipients, target_email);
   curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
@@ -178,7 +187,7 @@ static void smtp_execute_send(config_t *config, const char *target_email,
   char payload[2048];
   snprintf(payload, sizeof(payload),
            "To: %s\r\nFrom: %s\r\nSubject: %s\r\n\r\n%s", target_email,
-           storage_get_config()->smtp_user, subject, body);
+           smtp_user, subject, body);
 
   // Note: fmemopen is great for Linux, but we avoid it on ESP32 to stay
   // portable
@@ -207,9 +216,13 @@ static void smtp_execute_send(config_t *config, const char *target_email,
  */
 void smtp_alert_all_contacts(config_t *config, zone_t *z) {
   // 1. GATEKEEPER CHECK
-  if (storage_get_config()->notify != 2) {
+  storage_lock();
+  int notify_val = config->notify;
+  storage_unlock();
+
+  if (notify_val != 2) {
     printf("[SMTP] Skipping email: Notification mode is %d (Expected 2)\n",
-           storage_get_config()->notify);
+           notify_val);
     return;
   }
 
@@ -239,21 +252,29 @@ void smtp_alert_all_contacts(config_t *config, zone_t *z) {
              z->name);
   }
 
+  storage_lock();
+  char master_email[64] = {0};
+  strncpy(master_email, config->email, sizeof(master_email) - 1);
+
+  char user_emails[MAX_USERS][64] = {0};
+  for (int i = 0; i < MAX_USERS; i++) {
+    if (storage_get_user(i)->notify == 2 &&
+        storage_get_user(i)->email[0] != '\0') {
+      strncpy(user_emails[i], storage_get_user(i)->email,
+              sizeof(user_emails[i]) - 1);
+    }
+  }
+  storage_unlock();
+
   // 2. Notify the Master Email
-  if (storage_get_config()->email[0] != '\0') {
-    smtp_execute_send(config, storage_get_config()->email, subject, body);
+  if (master_email[0] != '\0') {
+    smtp_execute_send(config, master_email, subject, body);
   }
 
   // 3. Notify Secondary Users
   for (int i = 0; i < MAX_USERS; i++) {
-    // Check if user has Email notifications (2) enabled
-    if (storage_get_user(i)->notify == 2) {
-      if (storage_get_user(i)->email[0] != '\0') {
-        smtp_execute_send(config, storage_get_user(i)->email, subject, body);
-      }
-    } else {
-      printf("[SMTP] Skipping user %s: User-level notify is disabled.\n",
-             storage_get_user(i)->name);
+    if (user_emails[i][0] != '\0') {
+      smtp_execute_send(config, user_emails[i], subject, body);
     }
   }
 }
@@ -263,22 +284,39 @@ void smtp_alert_all_contacts(config_t *config, zone_t *z) {
  */
 void smtp_send_cancellation(config_t *config) {
   // Global check: only send if system is in Email mode
-  if (storage_get_config()->notify != 2)
+  storage_lock();
+  int notify_val = config->notify;
+  storage_unlock();
+
+  if (notify_val != 2)
     return;
 
   const char *subject = "Sentinel Status: Alarm Cancelled";
   const char *body = "The emergency alarm has been disarmed and cancelled.";
 
+  storage_lock();
+  char master_email[64] = {0};
+  strncpy(master_email, config->email, sizeof(master_email) - 1);
+
+  char user_emails[MAX_USERS][64] = {0};
+  for (int i = 0; i < MAX_USERS; i++) {
+    if (storage_get_user(i)->notify == 2 &&
+        storage_get_user(i)->email[0] != '\0') {
+      strncpy(user_emails[i], storage_get_user(i)->email,
+              sizeof(user_emails[i]) - 1);
+    }
+  }
+  storage_unlock();
+
   // 1. Notify Master
-  if (storage_get_config()->email[0] != '\0') {
-    smtp_execute_send(config, storage_get_config()->email, subject, body);
+  if (master_email[0] != '\0') {
+    smtp_execute_send(config, master_email, subject, body);
   }
 
   // 2. Notify Secondary Users (Checked against individual preferences)
   for (int i = 0; i < MAX_USERS; i++) {
-    if (storage_get_user(i)->notify == 2 &&
-        storage_get_user(i)->email[0] != '\0') {
-      smtp_execute_send(config, storage_get_user(i)->email, subject, body);
+    if (user_emails[i][0] != '\0') {
+      smtp_execute_send(config, user_emails[i], subject, body);
     }
   }
 }
