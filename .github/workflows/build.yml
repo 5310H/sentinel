@@ -28,7 +28,7 @@ jobs:
           
       - name: Build with ESP-IDF
         run: |
-          # The container already has ESP-IDF environment sourced
+          . /opt/esp/idf/export.sh
           idf.py build
           
       - name: Upload Firmware Artifacts
