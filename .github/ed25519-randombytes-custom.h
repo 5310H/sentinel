@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include "esp_random.h"
 
-static void ED25519_FN(ed25519_randombytes_unsafe) (void *p, size_t len) {
+void ED25519_FN(ed25519_randombytes_unsafe) (void *p, size_t len) {
     esp_fill_random(p, len);
 }
 

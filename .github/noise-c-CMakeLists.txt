@@ -15,6 +15,7 @@ file(GLOB_RECURSE noise_src
 # Exclude fuzz and test files
 list(FILTER noise_src EXCLUDE REGEX "test|fuzz")
 list(FILTER noise_src EXCLUDE REGEX "rand_sodium.c")
+list(FILTER noise_src EXCLUDE REGEX "donna-c64")
 
 idf_component_register(
     SRCS ${noise_src}
@@ -28,4 +29,5 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HAVE_STDLIB_H=1
     USE_MBEDTLS=1
     ED25519_CUSTOMRANDOM=1
+    ED25519_REFHASH=1
 )
