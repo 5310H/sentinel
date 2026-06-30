@@ -28,7 +28,14 @@ jobs:
           
       - name: Build with ESP-IDF
         run: |
+          # Inject the custom CMakeLists.txt into the submodule
+          cp .github/noise-c-CMakeLists.txt components/noise-c/CMakeLists.txt
+          
+          # Source ESP-IDF
           . /opt/esp/idf/export.sh
+          
+          # Set the target chip to ESP32-S3 and build
+          idf.py set-target esp32s3
           idf.py build
           
       - name: Upload Firmware Artifacts

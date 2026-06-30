@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.16)
+
+file(GLOB_RECURSE noise_src 
+    "src/protocol/*.c" 
+    "src/crypto/aes/*.c"
+    "src/crypto/blake2/*.c"
+    "src/crypto/chacha/*.c"
+    "src/crypto/donna/*.c"
+    "src/crypto/ed25519/*.c"
+    "src/crypto/ghash/*.c"
+    "src/crypto/sha2/*.c"
+    "src/backend/ref/*.c"
+)
+
+# Exclude fuzz and test files
+list(FILTER noise_src EXCLUDE REGEX "test|fuzz")
+list(FILTER noise_src EXCLUDE REGEX "rand_sodium.c")
+
+idf_component_register(
+    SRCS ${noise_src}
+    INCLUDE_DIRS "include" "src/protocol" "src" "src/backend/ref"
+    REQUIRES mbedtls
+)
+
+target_compile_definitions(${COMPONENT_LIB} PRIVATE 
+    HAVE_STDINT_H=1
+    HAVE_STRING_H=1
+    HAVE_STDLIB_H=1
+    USE_MBEDTLS=1
+)
