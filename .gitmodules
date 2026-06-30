@@ -1,3 +1,6 @@
 [submodule "components/esphome-c-api"]
 	path = components/esphome-c-api
 	url = https://github.com/5310H/esphome-c-api.git
+[submodule "components/noise-c"]
+	path = components/noise-c
+	url = https://github.com/rweather/noise-c.git
