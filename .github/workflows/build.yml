@@ -30,6 +30,7 @@ jobs:
         run: |
           # Inject the custom CMakeLists.txt into the submodule
           cp .github/noise-c-CMakeLists.txt components/noise-c/CMakeLists.txt
+          cp .github/ed25519-randombytes-custom.h components/noise-c/src/crypto/ed25519/ed25519-randombytes-custom.h
           
           # Source ESP-IDF
           . /opt/esp/idf/export.sh
