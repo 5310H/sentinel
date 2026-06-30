@@ -52,7 +52,7 @@ bool audit_log_init(void) {
                 }
             }
             write_index = entry_count % AUDIT_LOG_MAX_ENTRIES;
-            ESP_LOGI(TAG, "Loaded %d audit log entries (seq=%u)", entry_count, next_seq);
+            ESP_LOGI(TAG, "Loaded %d audit log entries (seq=%" PRIu32 ")", entry_count, next_seq);
         }
         fclose(f);
     } else {

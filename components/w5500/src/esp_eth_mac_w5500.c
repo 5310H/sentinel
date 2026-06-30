@@ -871,7 +871,7 @@ static esp_err_t emac_w5500_init(esp_eth_mac_t *mac)
     esp_eth_mediator_t *eth = emac->eth;
     if (emac->int_gpio_num >= 0) {
         gpio_func_sel(emac->int_gpio_num, PIN_FUNC_GPIO);
-        gpio_input_enable(emac->int_gpio_num);
+        gpio_set_direction(emac->int_gpio_num, GPIO_MODE_INPUT);
         gpio_pullup_en(emac->int_gpio_num);
         gpio_set_intr_type(emac->int_gpio_num, GPIO_INTR_NEGEDGE); // active low
         gpio_intr_enable(emac->int_gpio_num);
@@ -945,13 +945,14 @@ esp_eth_mac_t *esp_eth_mac_new_w5500(const eth_w5500_config_t *w5500_config, con
     emac->parent.read_phy_reg = emac_w5500_read_phy_reg;
     emac->parent.set_addr = emac_w5500_set_addr;
     emac->parent.get_addr = emac_w5500_get_addr;
-    emac->parent.add_mac_filter = emac_w5500_add_mac_filter;
-    emac->parent.rm_mac_filter = emac_w5500_del_mac_filter;
+    // MAC filter functions were removed from esp_eth_mac_t in ESP-IDF v5.x
+    // emac->parent.add_mac_filter = emac_w5500_add_mac_filter;
+    // emac->parent.rm_mac_filter = emac_w5500_del_mac_filter;
     emac->parent.set_speed = emac_w5500_set_speed;
     emac->parent.set_duplex = emac_w5500_set_duplex;
     emac->parent.set_link = emac_w5500_set_link;
     emac->parent.set_promiscuous = emac_w5500_set_promiscuous;
-    emac->parent.set_all_multicast = emac_w5500_set_all_multicast;
+    // emac->parent.set_all_multicast = emac_w5500_set_all_multicast;
     emac->parent.set_peer_pause_ability = emac_w5500_set_peer_pause_ability;
     emac->parent.enable_flow_ctrl = emac_w5500_enable_flow_ctrl;
     emac->parent.transmit = emac_w5500_transmit;
