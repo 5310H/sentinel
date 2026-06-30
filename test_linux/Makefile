@@ -6,7 +6,6 @@ TARGET = sentinel_test
 # --- DIRECTORIES ---
 COMP_BASE = ../components
 STORAGE_DIR  = $(COMP_BASE)/storage
-COMMS_DIR    = $(COMP_BASE)/comms
 MONGOOSE_DIR = $(COMP_BASE)/mongoose
 MQTT_APP_DIR = $(COMP_BASE)/mqtt_app
 ENGINE_DIR   = $(COMP_BASE)/engine
@@ -19,7 +18,7 @@ ESPHOME_C_API_DIR = ../components/esphome-c-api
 NOISE_DIR = ../components/noise-c
 
 # --- INCLUDES ---
-INCLUDES = -I$(STORAGE_DIR) -I$(COMMS_DIR) -I$(MONGOOSE_DIR) \
+INCLUDES = -I$(STORAGE_DIR) -I$(MONGOOSE_DIR) \
            -I$(HAL_DIR) -I$(MQTT_APP_DIR) -I$(ENGINE_DIR) -I$(SECURITY_DIR) -I$(CAMERA_DIR) -I$(ESPHOME_API_DIR) \
            -I$(ESPHOME_C_API_DIR)/include -I$(ESPHOME_C_API_DIR)/src/proto -I$(ESPHOME_C_API_DIR)/src -I$(NOISE_DIR)/include -I$(NOISE_DIR)/src/protocol -I.
 
@@ -49,11 +48,11 @@ OBJ = $(STORAGE_DIR)/storage_mgr.o \
       $(ENGINE_DIR)/noonlight.o \
       $(ENGINE_DIR)/telegram.o \
       $(ENGINE_DIR)/net.o \
-      $(COMMS_DIR)/ha_mqtt.o \
+      $(ENGINE_DIR)/ha_mqtt.o \
       $(ENGINE_DIR)/otp.o \
       $(MONGOOSE_DIR)/mongoose.o \
       $(MQTT_APP_DIR)/mqtt_logic.o \
-      $(COMMS_DIR)/smtp.o \
+      $(ENGINE_DIR)/smtp.o \
       $(ENGINE_DIR)/user_mgr.o \
       $(ENGINE_DIR)/logging.o \
       $(ENGINE_DIR)/engine.o \
