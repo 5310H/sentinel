@@ -23,6 +23,7 @@ jobs:
           
       - name: Manually fetch top-level submodules
         run: |
+          git config --global --add safe.directory '*'
           git submodule update --init --force
           
       - name: Build with ESP-IDF
