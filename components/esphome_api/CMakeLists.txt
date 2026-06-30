@@ -8,6 +8,5 @@ idf_component_register(
         nvs_flash
         engine
         storage
-        comms
         esphome-c-api
 )
