@@ -19,7 +19,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: false
+          
+      - name: Manually fetch top-level submodules
+        run: |
+          git submodule update --init --force
           
       - name: Build with ESP-IDF
         run: |
