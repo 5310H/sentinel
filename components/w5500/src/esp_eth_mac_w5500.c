@@ -459,6 +459,7 @@ err:
     return ret;
 }
 
+/*
 static esp_err_t emac_w5500_add_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
 {
     esp_err_t ret = ESP_OK;
@@ -478,7 +479,9 @@ static esp_err_t emac_w5500_add_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
 err:
     return ret;
 }
+*/
 
+/*
 static esp_err_t emac_w5500_del_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
 {
     esp_err_t ret = ESP_OK;
@@ -496,6 +499,7 @@ static esp_err_t emac_w5500_del_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
 err:
     return ret;
 }
+*/
 
 static esp_err_t emac_w5500_set_link(esp_eth_mac_t *mac, eth_link_t link)
 {
@@ -585,6 +589,7 @@ err:
     return ret;
 }
 
+/*
 static esp_err_t emac_w5500_set_all_multicast(esp_eth_mac_t *mac, bool enable)
 {
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
@@ -597,6 +602,7 @@ static esp_err_t emac_w5500_set_all_multicast(esp_eth_mac_t *mac, bool enable)
     }
     return ESP_OK;
 }
+*/
 
 static esp_err_t emac_w5500_enable_flow_ctrl(esp_eth_mac_t *mac, bool enable)
 {

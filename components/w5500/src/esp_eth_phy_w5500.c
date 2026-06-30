@@ -157,7 +157,7 @@ static esp_err_t w5500_reset_hw(esp_eth_phy_t *phy)
     if (w5500->reset_gpio_num >= 0) {
         gpio_func_sel(w5500->reset_gpio_num, PIN_FUNC_GPIO);
         gpio_set_level(w5500->reset_gpio_num, 0);
-        gpio_output_enable(w5500->reset_gpio_num);
+        gpio_set_direction(w5500->reset_gpio_num, GPIO_MODE_OUTPUT);
         esp_rom_delay_us(100); // insert min input assert time
         gpio_set_level(w5500->reset_gpio_num, 1);
     }
