@@ -393,7 +393,7 @@ esp_err_t scheduler_add_interval_task(
     
     *task_id = task->task_id;
     
-    ESP_LOGI(TAG, "Added interval task '%s' (ID:%d, interval:%us)", name, task->task_id, interval_seconds);
+    ESP_LOGI(TAG, "Added interval task '%s' (ID:%d, interval:%" PRIu32 "s)", name, task->task_id, interval_seconds);
     return ESP_OK;
 }
 

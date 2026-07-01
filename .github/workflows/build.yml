@@ -35,6 +35,7 @@ jobs:
           # Fix uint32_t format string warnings in esphome-c-api
           sed -i 's/%u/%" PRIu32 "/g' components/esphome-c-api/src/api/esphome_api.c
           sed -i '1i #include <inttypes.h>' components/esphome-c-api/src/api/esphome_api.c
+          sed -i 's/gai_strerror(err)/"getaddrinfo error"/g' components/esphome-c-api/src/transport/transport.c
           
           # Source ESP-IDF
           . /opt/esp/idf/export.sh
