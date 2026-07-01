@@ -47,6 +47,7 @@ void monitor_scan_all() {
     bool is_i2c = storage_get_zone(i)->is_i2c;
     int i2c_address = storage_get_zone(i)->i2c_address;
     storage_unlock();
+    (void)i2c_address; // Suppress unused warning since hal_read_i2c_adc is commented out
 
     // Skip virtual zones (gpio = -1) - handled separately
     if (gpio == -1)

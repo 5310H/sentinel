@@ -94,7 +94,7 @@ static void telegram_raw_send_async(const char* token, const char* chat_id, cons
         // .transport_keep_alive_enabled = true,  // Not available in all ESP-IDF versions
     };
     
-    esp_http_client_handle_t client = esp_http_client_initstorage_get_config();
+    esp_http_client_handle_t client = esp_http_client_init(&config);
     if (client == NULL) {
         LOG_ERROR(TAG, "Failed to initialize HTTP client");
         return;

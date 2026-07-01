@@ -15,6 +15,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 static const char *TAG = "ESPHOME_API";
+(void)TAG;
 #else
 #include <unistd.h>
 #include <pthread.h>

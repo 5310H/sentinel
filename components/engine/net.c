@@ -2,7 +2,9 @@
 #include "hardware_config.h"
 #include "mongoose.h"
 #include "ha_mqtt.h"
+#include "mqtt_logic.h"
 #include "storage_mgr.h"
+#include <inttypes.h>
 
 #ifdef ESP_PLATFORM
 #include "../security/audit_log.h"
@@ -268,13 +270,13 @@ void init_network_hardware(esp_netif_t *netif) {
       // Check if we got an IP (g_network_up is set in got_ip_event_handler)
       if (g_network_up) {
         dhcp_success = true;
-        ESP_LOGI(TAG, "DHCP succeeded after %u ms", dhcp_wait_ms);
+        ESP_LOGI(TAG, "DHCP succeeded after %" PRIu32 " ms", dhcp_wait_ms);
         break;
       }
     }
 
     if (!dhcp_success) {
-      ESP_LOGW(TAG, "DHCP timeout after %u ms - falling back to static IP: %s",
+      ESP_LOGW(TAG, "DHCP timeout after %" PRIu32 " ms - falling back to static IP: %s",
                dhcp_timeout_ms, storage_get_network()->ip);
 
       // Stop DHCP and apply static IP
@@ -357,7 +359,7 @@ void network_loop_task(void *pvParameters) {
   const uint64_t heartbeat_interval = 30000; // 30 seconds
   uint64_t last_mqtt_status_log = 0;
   uint64_t last_eth_monitor = 0;
-  uint64_t last_ip_check = 0;
+
   const uint64_t eth_monitor_interval = 60000; // Monitor every 60 seconds
 
   for (;;) {
