@@ -210,7 +210,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
 
         if (email_copy[0] != '\0') {
           // Format email body
-          char email_body[512];
+          char email_body[1024];
           snprintf(
               email_body, sizeof(email_body),
               "2FA Setup Code for Sentinel Alarm System\n\n"
