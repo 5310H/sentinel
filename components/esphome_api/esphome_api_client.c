@@ -14,8 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-static const char *TAG = "ESPHOME_API";
-(void)TAG;
+static const char *TAG __attribute__((unused)) = "ESPHOME_API";
 #else
 #include <unistd.h>
 #include <pthread.h>

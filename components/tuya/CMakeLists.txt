@@ -12,4 +12,6 @@ idf_component_register(
         esp_timer
         engine
         storage
+    PRIV_REQUIRES
+        esp_driver_gpio
 )
