@@ -169,8 +169,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
       get_json_str(hm->body, "$.totp_secret", totp_secret, sizeof(totp_secret));
 
       if (strlen(name) > 0) {
-        bool success = user_set_totp_secret(users, storage_get_user_count(),
-                                            name, totp_secret);
+        bool success = user_set_totp_secret(name, totp_secret);
         if (success) {
           mg_http_reply(c, 200, "Content-Type: application/json\r\n",
                         "{\"status\":\"ok\"}");
@@ -2956,15 +2955,6 @@ void app_main(void) {
     ESP_LOGI(TAG, "Audit log initialized");
   }
 
-  // Migrate users with plaintext PINs to hashed passwords
-  ESP_LOGI(TAG, "Checking for users needing password migration...");
-  esp_err_t migration_result = users_migrate_all_to_hash();
-  if (migration_result == ESP_OK) {
-    ESP_LOGI(TAG, "User migration complete - saving to storage");
-    // Save migrated users back to storage
-    extern void storage_save_users(void);
-    storage_save_users();
-  }
 
   // 5. HAL + Engine Init (pass shared I2C bus to system_monitoring)
   hal_esp32_init();
