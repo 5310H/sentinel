@@ -33,17 +33,18 @@ void hal_net_apply_static_ip(esp_netif_t *netif) {
         return;
     }
 
-    if (!net_cfg.use_dhcp) {
-        ESP_LOGI(TAG, "Configuring Static IP: %s", net_cfg.ip);
+    network_t *net_cfg = storage_get_network();
+    if (!net_cfg->use_dhcp) {
+        ESP_LOGI(TAG, "Configuring Static IP: %s", net_cfg->ip);
 
         // 1. Stop DHCP client
         esp_netif_dhcpc_stop(netif);
 
         // 2. Set IP info
         esp_netif_ip_info_t ip_info;
-        ip_info.ip.addr = ipaddr_addr(net_cfg.ip);
-        ip_info.gw.addr = ipaddr_addr(net_cfg.gateway);
-        ip_info.netmask.addr = ipaddr_addr(net_cfg.netmask);
+        ip_info.ip.addr = ipaddr_addr(net_cfg->ip);
+        ip_info.gw.addr = ipaddr_addr(net_cfg->gateway);
+        ip_info.netmask.addr = ipaddr_addr(net_cfg->netmask);
 
         // 3. Apply
         esp_netif_set_ip_info(netif, &ip_info);
@@ -51,7 +52,8 @@ void hal_net_apply_static_ip(esp_netif_t *netif) {
         ESP_LOGI(TAG, "Network configured for DHCP");
     }
 #else
-    ESP_LOGI(TAG, "[MOCK] Static IP would be: %s", net_cfg.ip);
+    network_t *net_cfg = storage_get_network();
+    ESP_LOGI(TAG, "[MOCK] Static IP would be: %s", net_cfg->ip);
 #endif
 }
 
