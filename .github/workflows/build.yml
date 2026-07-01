@@ -32,6 +32,10 @@ jobs:
           cp .github/noise-c-CMakeLists.txt components/noise-c/CMakeLists.txt
           cp .github/ed25519-randombytes-custom.h components/noise-c/src/crypto/ed25519/ed25519-randombytes-custom.h
           
+          # Fix uint32_t format string warnings in esphome-c-api
+          sed -i 's/%u/%" PRIu32 "/g' components/esphome-c-api/src/api/esphome_api.c
+          sed -i '1i #include <inttypes.h>' components/esphome-c-api/src/api/esphome_api.c
+          
           # Source ESP-IDF
           . /opt/esp/idf/export.sh
           
