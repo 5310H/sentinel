@@ -8,6 +8,7 @@
 #include "hardware_config.h"
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 #ifdef ESP_PLATFORM
 #include "driver/i2c_master.h"
@@ -320,7 +321,7 @@ int system_monitoring_update(system_status_t *status) {
         system_monitoring_log_event(EVENT_TYPE_POWER_LOSS, 0);
         g_current_status.backup_power_duration_ms = 0;
     } else if (!power_loss_now && g_current_status.power_loss_detected) {
-        ESP_LOGI(TAG, "POWER RESTORED after %u ms on backup", 
+        ESP_LOGI(TAG, "POWER RESTORED after %" PRIu32 " ms on backup", 
                  g_current_status.backup_power_duration_ms);
         system_monitoring_log_event(EVENT_TYPE_POWER_RESTORE, 0);
     }
@@ -334,7 +335,7 @@ int system_monitoring_update(system_status_t *status) {
         
         // Alert after 30 minutes on backup
         if (g_current_status.backup_power_duration_ms > (30 * 60 * 1000)) {
-            ESP_LOGW(TAG, "Extended backup power: %u minutes",
+            ESP_LOGW(TAG, "Extended backup power: %" PRIu32 " minutes",
                      g_current_status.backup_power_duration_ms / (60 * 1000));
         }
     } else {

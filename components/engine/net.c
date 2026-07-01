@@ -1,7 +1,7 @@
 #include "net.h"
 #include "hardware_config.h"
 #include "mongoose.h"
-#include "mqtt_logic.h"
+#include "ha_mqtt.h"
 #include "storage_mgr.h"
 
 #ifdef ESP_PLATFORM

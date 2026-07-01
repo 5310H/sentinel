@@ -528,7 +528,7 @@ void engine_tick(void) {
                       "ESPHome device '%s' dropped offline while armed! "
                       "Triggering Tamper Alarm.",
                       dev->friendly_name);
-            snprintf(s_violation_name, sizeof(s_violation_name), "%s (Offline)",
+            snprintf(s_violation_name, sizeof(s_violation_name), "%.48s (Offline)",
                      dev->friendly_name);
             strncpy(s_violation_type, "Tamper", sizeof(s_violation_type) - 1);
 
@@ -565,7 +565,7 @@ void engine_tick(void) {
                       "Camera '%s' dropped offline while armed! Triggering "
                       "Tamper Alarm.",
                       cam->friendly_name);
-            snprintf(s_violation_name, sizeof(s_violation_name), "%s (Offline)",
+            snprintf(s_violation_name, sizeof(s_violation_name), "%.48s (Offline)",
                      cam->friendly_name);
             strncpy(s_violation_type, "Tamper", sizeof(s_violation_type) - 1);
             engine_trigger_alarm(0); // Trigger physical alarm immediately
@@ -847,7 +847,7 @@ int engine_restore_arm_state(void) {
     nvs_close(nvs_handle);
 
     if (err == ESP_OK) {
-      LOG_INFO(TAG, "Restored arm state from NVS: %d", restored_state);
+      LOG_INFO(TAG, "Restored arm state from NVS: %" PRId32, restored_state);
     } else if (err == ESP_ERR_NVS_NOT_FOUND) {
       LOG_INFO(TAG, "No saved arm state in NVS, defaulting to DISARMED");
       restored_state = 0;
