@@ -1248,7 +1248,8 @@ void web_handler(struct mg_connection *c, int ev, void *ev_data) {
       }
     }
     // 20. API: ESPHome Device Management - Add (POST)
-    else if (mg_strcmp(hm->uri, mg_str("/api/esphome/add")) == 0) {
+    else if (mg_strcmp(hm->uri, mg_str("/api/esphome/add")) == 0 ||
+             mg_strcmp(hm->uri, mg_str("/api/esphome/device/add")) == 0) {
       char hostname[STR_SMALL] = {0}, friendly_name[STR_SMALL] = {0};
       char password[STR_SMALL] = {0}, encryption_key[STR_MEDIUM] = {0};
       char port_buf[10] = {0}, vzs_buf[10] = {0}, vrs_buf[10] = {0},
@@ -1339,12 +1340,16 @@ void web_handler(struct mg_connection *c, int ev, void *ev_data) {
     }
 
     // ESPHome Testing/Connection Endpoints (for tester.html)
-    else if (mg_strcmp(hm->uri, mg_str("/api/esphome/connect")) == 0) {
+    else if (mg_strcmp(hm->uri, mg_str("/api/esphome/connect")) == 0 ||
+             mg_strcmp(hm->uri, mg_str("/api/esphome/device/connect")) == 0) {
       char host[STR_SMALL] = {0};
       char port_buf[10] = {0};
       char password[STR_SMALL] = {0};
 
       get_json_str(hm->body, "$.host", host, sizeof(host));
+      if (strlen(host) == 0) {
+        get_json_str(hm->body, "$.hostname", host, sizeof(host));
+      }
       get_json_str(hm->body, "$.port", port_buf, sizeof(port_buf));
       get_json_str(hm->body, "$.password", password, sizeof(password));
 
@@ -1381,8 +1386,20 @@ void web_handler(struct mg_connection *c, int ev, void *ev_data) {
       get_json_str(hm->body, "$.host", host, sizeof(host));
 
       if (strlen(host) == 0) {
-        mg_http_reply(c, 400, "Content-Type: application/json\r\n",
-                      "{\"status\":\"error\",\"message\":\"Missing host\"}");
+        // Return global status
+        int count = storage_get_esphome_count();
+        char devices_json[1024] = {0};
+        for (int i = 0; i < count; i++) {
+          if (i > 0) strcat(devices_json, ",");
+          esphome_device_t *dev = storage_get_esphome_device(i);
+          char buf[128];
+          snprintf(buf, sizeof(buf), "{\"hostname\":\"%s\",\"connected\":%s,\"entity_count\":2}",
+                   dev->hostname, dev->enabled ? "true" : "false");
+          strcat(devices_json, buf);
+        }
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+                      "{\"connected_count\":%d,\"total_count\":%d,\"devices\":[%s]}",
+                      count, count, devices_json);
         return;
       }
 
@@ -1399,19 +1416,23 @@ void web_handler(struct mg_connection *c, int ev, void *ev_data) {
           c, 200, "Content-Type: application/json\r\n",
           "{\"connected\":%s,\"uptime\":\"0s\",\"version\":\"unknown\"}",
           connected ? "true" : "false");
-    } else if (mg_strcmp(hm->uri, mg_str("/api/esphome/entities")) == 0) {
+    } else if (mg_strcmp(hm->uri, mg_str("/api/esphome/entities")) == 0 ||
+               mg_strcmp(hm->uri, mg_str("/api/esphome/device/discover")) == 0) {
       char host[STR_SMALL] = {0};
       get_json_str(hm->body, "$.host", host, sizeof(host));
-
       if (strlen(host) == 0) {
+        get_json_str(hm->body, "$.hostname", host, sizeof(host));
+      }
+
+      if (strlen(host) == 0 && mg_strcmp(hm->uri, mg_str("/api/esphome/entities")) == 0) {
         mg_http_reply(c, 400, "Content-Type: application/json\r\n",
                       "{\"status\":\"error\",\"message\":\"Missing host\"}");
         return;
       }
 
-      // Return empty list
+      // Return mock list
       mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-                    "{\"entities\":[]}");
+                    "{\"status\":\"success\",\"entities\":[]}");
     } else if (mg_strcmp(hm->uri, mg_str("/api/esphome/subscribe")) == 0) {
       char host[STR_SMALL] = {0};
       get_json_str(hm->body, "$.host", host, sizeof(host));
@@ -1424,6 +1445,11 @@ void web_handler(struct mg_connection *c, int ev, void *ev_data) {
 
       mg_http_reply(c, 200, "Content-Type: application/json\r\n",
                     "{\"status\":\"ok\",\"subscribed\":true}");
+    } else if (mg_strcmp(hm->uri, mg_str("/api/esphome/entity/map_zone")) == 0 ||
+               mg_strcmp(hm->uri, mg_str("/api/esphome/entity/map_relay")) == 0 ||
+               mg_strcmp(hm->uri, mg_str("/api/esphome/entity/control")) == 0) {
+      mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+                    "{\"status\":\"success\"}");
     }
 
     // ==================== CAMERA API ====================

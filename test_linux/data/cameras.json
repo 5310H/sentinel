@@ -16,4 +16,10 @@
 		"password":	"thingino",
 		"enabled":	true,
 		"snapshot_cmd":	"http://root:2017Home2017@192.168.69.47/x/image.cgi"
+	}, {
+		"hostname":	"192.168.1.100",
+		"port":	80,
+		"friendly_name":	"Test Camera",
+		"camera_id":	"image.jpg",
+		"enabled":	true
 	}]
