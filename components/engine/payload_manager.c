@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "config.h"
 #include "dispatcher.h"
 #include "payload_manager.h"
 #include "storage_mgr.h"

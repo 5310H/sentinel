@@ -612,11 +612,9 @@ esp_err_t camera_mgr_fetch_snapshot(int camera_id, uint8_t **out_buffer,
         }
       }
     }
+    esp_http_client_cleanup(client);
+    ESP_LOGW(TAG, "Custom snapshot URL failed, trying default patterns");
   }
-
-  esp_http_client_cleanup(client);
-  ESP_LOGW(TAG, "Custom snapshot URL failed, trying default patterns");
-}
 
 // Try multiple URL patterns (ESPHome, Thingino, generic)
 const char *url_patterns[] = {
