@@ -227,7 +227,7 @@ keypad_result_t engine_check_keypad(const char *input_pin) {
   // Rate limiting: Check if locked out
   if (auth_state.locked_out) {
     if (now_ms < auth_state.lockout_until_ms) {
-      LOG_WARN(TAG, "Authentication locked out (attempt %u/%u)",
+      LOG_WARN(TAG, "Authentication locked out (attempt %" PRIu32 "/%" PRIu32 ")",
                auth_state.failed_attempts, MAX_AUTH_ATTEMPTS);
       return res;
     } else {
@@ -292,7 +292,7 @@ keypad_result_t engine_check_keypad(const char *input_pin) {
     audit_log_write("system", "", "AUTH_LOCKOUT", "engine_authenticate", true,
                     "5 minute lockout due to repeated failures");
   } else {
-    LOG_WARN(TAG, "Invalid PIN attempt (%u/%u)", auth_state.failed_attempts,
+    LOG_WARN(TAG, "Invalid PIN attempt (%" PRIu32 "/%" PRIu32 ")", auth_state.failed_attempts,
              MAX_AUTH_ATTEMPTS);
   }
 
@@ -479,7 +479,7 @@ void engine_tick(void) {
         }
       }
       if (status.on_backup_power) {
-        LOG_WARN(TAG, "System on backup power - %u ms",
+        LOG_WARN(TAG, "System on backup power - %" PRIu32 " ms",
                  status.backup_power_duration_ms);
       }
       if (status.temperature_c > 45) {

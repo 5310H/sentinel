@@ -20,7 +20,6 @@
  */
 
 #include <stdbool.h>
-#include "config.h"
 #include "storage_mgr.h"
 
 // Notification channel slots
