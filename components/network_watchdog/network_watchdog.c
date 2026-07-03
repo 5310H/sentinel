@@ -4,6 +4,9 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "lwip/sockets.h"
+#include "lwip/netdb.h"
+#include <fcntl.h>
 #else
 #include <stdio.h>
 #endif
