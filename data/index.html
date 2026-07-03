@@ -4,142 +4,545 @@
     <meta charset="UTF-8">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/565/565547.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sentinel Control Panel</title>
+    <title>Sentinel Command Center</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #0a0a0a; --panel: #1a1a1a; --bezel: #2a2a2a; --display: #001100;
-            --ready: #28a745; --not: #ffc107; --armed: #dc3545; --alarm: #ff0000;
-            --accent: #00ff00; --text-dim: #333;
+            --bg-color: #0f111a;
+            --glass-bg: rgba(20, 24, 36, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            
+            --ready: #10b981; 
+            --not: #f59e0b; 
+            --armed: #ef4444; 
+            --alarm: #dc2626;
+            --accent: #3b82f6;
+            --text-main: #f3f4f6;
+            --text-dim: #9ca3af;
         }
-        * { box-sizing: border-box; }
-        body { font-family: 'Courier New', monospace; background: var(--bg); color: white; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 8px; -webkit-user-select: none; user-select: none; }
-        .panel-container { width: 100%; max-width: 500px; background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%); border: 8px solid #333; border-radius: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1); padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .panel-name { font-size: 18px; font-weight: bold; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0; }
-        .panel-model { font-size: 11px; color: #666; margin: 5px 0 0 0; letter-spacing: 1px; }
-        .display-area { background: var(--display); border: 3px solid #1a4d1a; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between; }
-        .time-display { text-align: center; font-size: 48px; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px rgba(0,255,0,0.3); margin: 0; line-height: 1; letter-spacing: 2px; }
-        .date-display { text-align: center; font-size: 11px; color: #00aa00; text-transform: uppercase; margin-top: 8px; letter-spacing: 1px; }
-        .status-display { text-align: center; font-size: 16px; font-weight: bold; margin-top: 10px; padding: 8px; border-top: 1px solid #1a4d1a; min-height: 24px; color: var(--accent); }
-        .status-display.ready { color: var(--ready); }
-        .status-display.not-ready { color: var(--not); }
-        .status-display.armed { color: var(--armed); }
-        .indicators { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
-        .indicator { background: #222; border: 2px solid #333; border-radius: 8px; padding: 12px; text-align: center; font-size: 11px; }
-        .indicator-label { color: #666; text-transform: uppercase; margin-bottom: 6px; font-size: 9px; }
-        .indicator-value { font-size: 14px; font-weight: bold; color: #888; }
-        .indicator.active .indicator-value { color: var(--accent); }
-        .pin-entry { background: #222; border: 2px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: none; }
-        .pin-entry.visible { display: block; }
-        .pin-display { background: #001100; border: 2px solid #1a4d1a; padding: 12px; margin-bottom: 12px; text-align: center; font-size: 28px; letter-spacing: 8px; color: var(--accent); min-height: 40px; border-radius: 4px; }
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-        .key { background: #333; border: 2px solid #555; border-radius: 6px; padding: 16px 0; font-size: 20px; font-weight: bold; cursor: pointer; color: white; box-shadow: 0 4px 0 #1a1a1a; }
-        .key:active { background: var(--accent); color: #000; transform: translateY(2px); }
-        .arm-buttons { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 10px; margin-bottom: 15px; }
-        .control-btn { width: 100%; text-align: center; padding: 16px 4px; border: none; border-radius: 8px; font-weight: bold; font-size: 10px; cursor: pointer; text-transform: uppercase; font-family: inherit; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
-        .btn-arm { background: var(--armed); color: white; }
-        .btn-disarm { background: var(--ready); color: #000; font-weight: bold; }
-        .menu-section { display: none; }
-        .menu-section.visible { display: block; }
-        .menu-links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 15px 0; }
-        .menu-link { background: #444; border: 2px solid #555; border-radius: 8px; padding: 12px; text-align: center; text-decoration: none; color: white; font-size: 9px; text-transform: uppercase; }
-        .setup-data { background: #111; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; font-size: 10px; color: #666; }
+        * { box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { 
+            background: radial-gradient(circle at top right, #1e1b4b, #0f111a 60%);
+            color: var(--text-main); 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px; 
+            -webkit-user-select: none; 
+            user-select: none; 
+        }
         
-        /* 2FA Setup Modal */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-overlay.visible { display: flex; }
-        .modal-content { background: #1a1a1a; border: 4px solid var(--accent); border-radius: 12px; padding: 20px; max-width: 400px; width: 90%; }
-        .modal-title { color: var(--accent); font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: uppercase; }
-        .qr-container { background: white; padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; }
-        .secret-display { background: #001100; border: 2px solid #1a4d1a; padding: 10px; margin: 10px 0; text-align: center; font-size: 12px; color: var(--accent); word-break: break-all; border-radius: 4px; }
-        .modal-input { width: 100%; background: #222; border: 2px solid #444; color: var(--accent); padding: 12px; margin: 10px 0; font-family: 'Courier New', monospace; border-radius: 4px; font-size: 16px; text-align: center; letter-spacing: 4px; }
-        .modal-btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-family: 'Courier New', monospace; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        /* Glassmorphism Container */
+        .dashboard { 
+            width: 100%; 
+            max-width: 900px; 
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: var(--glass-shadow);
+            padding: 30px; 
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+
+        /* Header / Time */
+        .header-module {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 20px;
+        }
+        .brand {
+            font-size: 14px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 700;
+        }
+        .time-display {
+            font-size: 64px;
+            font-weight: 300;
+            line-height: 1;
+            background: -webkit-linear-gradient(#fff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .date-display {
+            font-size: 16px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        /* Modules */
+        .module {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+        .module:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+        .module-title {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .module-title svg { width: 16px; height: 16px; margin-right: 8px; fill: currentColor; }
+
+        /* Status Module */
+        .status-display {
+            font-size: 28px;
+            font-weight: 700;
+            text-align: center;
+            padding: 20px 0;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.2);
+            margin-bottom: 15px;
+            transition: color 0.3s ease;
+        }
+        .status-display.ready { color: var(--ready); text-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+        .status-display.not-ready { color: var(--not); text-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+        .status-display.armed { color: var(--armed); text-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+
+        .btn-unlock {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent), #2563eb);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        .btn-unlock:hover { transform: scale(1.02); filter: brightness(1.1); }
+        .btn-unlock:active { transform: scale(0.98); }
+
+        /* Weather Module */
+        .weather-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .weather-temp {
+            font-size: 42px;
+            font-weight: 300;
+        }
+        .weather-desc {
+            font-size: 16px;
+            color: var(--accent);
+            text-transform: capitalize;
+        }
+        .weather-icon {
+            font-size: 48px;
+        }
+
+        /* Health Indicators */
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .indicator-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .ind-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
+        .ind-value { font-size: 16px; font-weight: 600; margin-top: 4px; }
+        .ind-value.alert { color: var(--alarm); }
+        .ind-value.warn { color: var(--not); }
+        .ind-value.ok { color: var(--ready); }
+
+        /* Audit Log Module */
+        .audit-list {
+            list-style: none;
+            padding: 0; margin: 0;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .audit-item {
+            font-size: 13px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+        }
+        .audit-item:last-child { border-bottom: none; }
+        .audit-time { color: var(--text-dim); font-size: 11px; }
+
+        /* Zone Status Module */
+        .zone-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .zone-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-left: 4px solid var(--ready);
+        }
+        .zone-card.open { border-left-color: var(--alarm); }
+        .zone-name { font-size: 12px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+        .zone-state { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(16,185,129,0.2); color: var(--ready); }
+        .zone-card.open .zone-state { background: rgba(220,38,38,0.2); color: var(--alarm); }
+
+        /* Camera & Panic Modules */
+        .camera-feed {
+            width: 100%;
+            height: 180px;
+            background: #000;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panic-slider-container {
+            width: 100%;
+            height: 60px;
+            background: rgba(220, 38, 38, 0.1);
+            border: 2px solid var(--alarm);
+            border-radius: 30px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .panic-slider-text {
+            color: var(--alarm);
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: 2px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .panic-thumb {
+            width: 56px;
+            height: 56px;
+            background: var(--alarm);
+            border-radius: 50%;
+            position: absolute;
+            left: 2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(220,38,38,0.5);
+            transition: transform 0.1s;
+        }
+        .panic-thumb::before {
+            content: '>';
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+        }
+
+        /* Keypad Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.visible { display: flex; opacity: 1; }
+        
+        .keypad-container {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 380px;
+            box-shadow: var(--glass-shadow);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.visible .keypad-container { transform: translateY(0); }
+        
+        .pin-display {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            font-size: 32px;
+            letter-spacing: 12px;
+            color: var(--accent);
+            min-height: 70px;
+            margin-bottom: 20px;
+        }
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .key {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px 0;
+            font-size: 24px;
+            font-weight: 300;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .key:hover { background: rgba(255,255,255,0.1); transform: scale(1.05); }
+        .key:active { transform: scale(0.95); background: var(--accent); }
+        .key-c { color: var(--armed); font-weight: 600; }
+        .key-ok { color: var(--ready); font-weight: 600; }
+        
+        .close-modal {
+            position: absolute;
+            top: 20px; right: 20px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        .close-modal:hover { opacity: 1; }
+
+        /* Action Buttons (shown when unlocked) */
+        .action-buttons {
+            display: none;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .action-btn {
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .action-btn:hover { opacity: 0.9; }
+        .btn-away { background: #dc2626; }
+        .btn-stay { background: #f59e0b; }
+        .btn-night { background: #4f46e5; }
+        .btn-disarm-action { background: #10b981; grid-column: 1 / -1; }
+        
+        .admin-links {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .admin-link {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        .admin-link:hover { color: white; background: rgba(255,255,255,0.1); }
+        
+        /* 2FA Input Classes reused */
+        .modal-input { width: 100%; background: #222; border: 2px solid #444; color: var(--accent); padding: 12px; margin: 10px 0; border-radius: 4px; font-size: 16px; text-align: center; letter-spacing: 4px; }
+        .modal-btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
         .modal-btn-primary { background: var(--accent); color: black; }
         .modal-btn-secondary { background: #555; color: white; }
-        .modal-text { color: #aaa; font-size: 11px; text-align: center; margin: 10px 0; line-height: 1.4; }
+        
+        #totp-modal .modal-content {
+            background: var(--glass-bg);
+            border: 1px solid var(--accent);
+            padding: 30px;
+            border-radius: 20px;
+            color: white;
+            text-align: center;
+        }
+        
     </style>
 </head>
 <body>
-    <div class="panel-container">
-        <div class="header">
-            <p class="panel-name">SENTINEL</p>
-            <p class="panel-model">Alarm Control Panel</p>
-        </div>
+
+    <!-- Main Dashboard -->
+    <div class="dashboard">
         
-        <div class="display-area">
+        <!-- Header -->
+        <div class="header-module">
             <div>
-                <div class="time-display" id="live-time">--:--</div>
+                <div class="brand">Sentinel Command Center</div>
                 <div class="date-display" id="live-date">---</div>
             </div>
+            <div>
+                <div class="time-display" id="live-time">--:--</div>
+            </div>
+        </div>
+        
+        <!-- Status Module -->
+        <div class="module">
+            <div class="module-title">System Status</div>
             <div class="status-display" id="status-display">CONNECTING...</div>
+            <button class="btn-unlock" onclick="openKeypad()" id="btn-unlock-text">UNLOCK SYSTEM</button>
+            
+            <div class="action-buttons" id="arm-buttons">
+                <button class="action-btn btn-away" onclick="doAction('/api/arm', {mode:'away'})">ARM AWAY</button>
+                <button class="action-btn btn-stay" onclick="doAction('/api/arm', {mode:'stay'})">ARM STAY</button>
+                <button class="action-btn btn-night" onclick="doAction('/api/arm', {mode:'night'})">ARM NIGHT</button>
+                <button class="action-btn" style="background:#8b5cf6;" onclick="doAction('/api/arm', {mode:'vacation'})">VACATION</button>
+            </div>
+            <div class="action-buttons" id="disarm-buttons" style="display:none;">
+                <button class="action-btn btn-disarm-action" onclick="doAction('/api/disarm', {})">DISARM SYSTEM</button>
+            </div>
+            
+            <div class="admin-links" id="admin-menu">
+                <a href="users.html" class="admin-link">Users</a>
+                <a href="devices.html" class="admin-link">Devices</a>
+                <a href="cameras.html" class="admin-link">Cameras</a>
+                <a href="cameras_live.html" class="admin-link">Live View</a>
+                <a href="tuya.html" class="admin-link">Tuya</a>
+                <a href="scheduler.html" class="admin-link">Schedule</a>
+                <a href="audit.html" class="admin-link">Audit</a>
+            </div>
         </div>
         
-        <div class="indicators">
-            <div class="indicator active"><div class="indicator-label">Uptime</div><div class="indicator-value" id="nvs-up">--</div></div>
-            <div class="indicator active"><div class="indicator-label">Temp</div><div class="indicator-value" id="temp-value">--°F</div></div>
-            <div class="indicator" id="power-indicator"><div class="indicator-label">Power</div><div class="indicator-value" id="power-value">AC</div></div>
-            <div class="indicator" id="tamper-indicator"><div class="indicator-label">Tamper</div><div class="indicator-value" id="tamper-value">OK</div></div>
+        <!-- Weather Module -->
+        <div class="module">
+            <div class="module-title">Local Weather</div>
+            <div class="weather-info">
+                <div>
+                    <div class="weather-temp" id="weather-temp">--°</div>
+                    <div class="weather-desc" id="weather-desc">Loading...</div>
+                </div>
+                <div class="weather-icon" id="weather-icon">☁️</div>
+            </div>
         </div>
         
-        <div class="pin-entry visible" id="pin-entry">
+        <!-- Environment & Health -->
+        <div class="module">
+            <div class="module-title">System Health</div>
+            <div class="indicators-grid">
+                <div class="indicator-card">
+                    <span class="ind-label">Panel Temp</span>
+                    <span class="ind-value" id="temp-value">--°F</span>
+                </div>
+                <div class="indicator-card">
+                    <span class="ind-label">Power Source</span>
+                    <span class="ind-value ok" id="power-value">AC MAIN</span>
+                </div>
+                <div class="indicator-card">
+                    <span class="ind-label">Network</span>
+                    <span class="ind-value" id="net-value">WAIT</span>
+                </div>
+                <div class="indicator-card">
+                    <span class="ind-label">Tamper</span>
+                    <span class="ind-value ok" id="tamper-value">SECURE</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Audit Log Snippet -->
+        <div class="module">
+            <div class="module-title">Recent Activity</div>
+            <ul class="audit-list" id="audit-list">
+                <li class="audit-item"><span style="color:#666">Loading events...</span></li>
+            </ul>
+        </div>
+        
+        <!-- Live Camera Snapshot -->
+        <div class="module">
+            <div class="module-title">Main Camera</div>
+            <img id="camera-snapshot" class="camera-feed" src="/api/camera/0/snapshot" alt="Camera Feed Offline" onerror="this.src='https://dummyimage.com/600x400/1a1c23/666666&text=CAMERA+OFFLINE'">
+        </div>
+
+        <!-- Panic Button -->
+        <div class="module">
+            <div class="module-title" style="color: var(--alarm)">Emergency</div>
+            <p style="color: #888; font-size: 13px; margin: 0 0 10px 0;">Slide to trigger immediate panic alarm.</p>
+            <div class="panic-slider-container" id="panic-container">
+                <div class="panic-slider-text">SLIDE TO PANIC</div>
+                <div class="panic-thumb" id="panic-thumb"></div>
+            </div>
+        </div>
+
+        <!-- Sensors & Zones -->
+        <div class="module" style="grid-column: 1 / -1;">
+            <div class="module-title">Sensors & Zones</div>
+            <div class="zone-grid" id="zone-grid">
+                <div style="color:#666; font-size:12px;">Loading zones...</div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Keypad Overlay -->
+    <div class="modal-overlay" id="keypad-modal">
+        <div class="close-modal" onclick="closeKeypad()">✕</div>
+        <div class="keypad-container">
+            <div style="text-align:center; color:white; margin-bottom:15px; font-weight:600; letter-spacing:2px;">ENTER PIN</div>
             <div class="pin-display" id="pin-display"></div>
-            <div style="color: #ff4444; font-size: 14px; margin-bottom: 10px; text-align: center; min-height: 20px;" id="pin-error-msg"></div>
+            <div style="color: #ef4444; font-size: 12px; margin-bottom: 10px; text-align: center; min-height: 15px;" id="pin-error-msg"></div>
             <div class="keypad">
                 <div class="key" onclick="press(1)">1</div><div class="key" onclick="press(2)">2</div><div class="key" onclick="press(3)">3</div>
                 <div class="key" onclick="press(4)">4</div><div class="key" onclick="press(5)">5</div><div class="key" onclick="press(6)">6</div>
                 <div class="key" onclick="press(7)">7</div><div class="key" onclick="press(8)">8</div><div class="key" onclick="press(9)">9</div>
-                <div class="key" style="color:#ff4444" onclick="clr()">C</div><div class="key" onclick="press(0)">0</div><div class="key" style="color:#44ff44" onclick="submit()">OK</div>
+                <div class="key key-c" onclick="clr()">C</div><div class="key" onclick="press(0)">0</div><div class="key key-ok" onclick="submit()">OK</div>
             </div>
-        </div>
-        
-        <div class="menu-section" id="menu-section">
-            <div class="arm-buttons" id="arm-buttons">
-                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'away'})">AWAY</button>
-                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'stay'})">STAY</button>
-                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'night'})">NIGHT</button>
-                <button class="control-btn btn-arm" onclick="doAction('/api/arm', {mode:'vacation'})">VAC</button>
-            </div>
-            <div id="disarm-buttons" style="display:none;">
-                <button class="control-btn btn-disarm" style="width:100%" onclick="doAction('/api/disarm', {})">DISARM SYSTEM</button>
-            </div>
-            
-            <div class="menu-links" id="admin-menu" style="display:none;">
-                <a href="users.html" class="menu-link">Users</a>
-                <a href="devices.html" class="menu-link">Devices</a>
-                <a href="cameras.html" class="menu-link">📹 Cameras</a>
-                <a href="cameras_live.html" class="menu-link">📹 Live View</a>
-                <a href="tuya.html" class="menu-link">📱 Tuya Devices</a>
-                <a href="scheduler.html" class="menu-link">⏰ Scheduler</a>
-                <a href="zstatus.html" class="menu-link">ZStatus</a>
-                <a href="audit.html" class="menu-link">Audit</a>
-                <a href="tester.html" class="menu-link">Tester</a>
-            </div>
-            
-            <button class="control-btn" style="background: #555; color: white; width: 100%;" onclick="sessionStorage.removeItem('sentinel_token'); location.reload()">LOGOUT</button>
-        </div>
-        
-        <div class="footer" style="text-align: center; font-size: 9px; color: #444; margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
-            <p>System Status: OK | Secure</p>
         </div>
     </div>
-
-    <!-- 2FA Setup Modal -->
-    <div class="modal-overlay" id="totp-modal">
-        <div class="modal-content">
-            <div class="modal-title">🔐 Two-Factor Authentication Required</div>
-            <div class="modal-text">
-                Before you can arm/disarm the system, you must set up 2-Factor Authentication.
+    
+    <!-- 2FA Setup Modal (Reused Logic) -->
+    <div class="modal-overlay" id="totp-modal" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 400px; width: 90%;">
+            <div style="color: var(--accent); font-size: 16px; font-weight: bold; margin-bottom: 15px;">🔐 Two-Factor Authentication Required</div>
+            <div style="color: #aaa; font-size: 12px; margin-bottom: 15px;">
+                Before you can arm/disarm the system, you must set up 2-Factor Authentication.<br><br>
+                We've sent a setup code to your email.
             </div>
-            <div class="modal-text" style="font-size: 13px; margin-top: 10px;">
-                We've sent a setup code to your email. Check your inbox and enter it below:
-            </div>
-            <div class="modal-text" style="font-size: 11px; color: #999;">
-                (Check spam folder if you don't see it)
-            </div>
-            <div class="modal-text">Enter the 2FA setup key from your email:</div>
-            <input type="text" class="modal-input" id="secret-input-box" maxlength="16" placeholder="ABCD1234EFGH5678" style="font-family: monospace; letter-spacing: 2px;">
-            <div class="modal-text" style="margin-top: 15px;">Then enter a 6-digit code from your authenticator app:</div>
+            <div style="font-size:12px">Enter the 2FA setup key from your email:</div>
+            <input type="text" class="modal-input" id="secret-input-box" maxlength="16" placeholder="ABCD1234EFGH5678">
+            <div style="font-size:12px; margin-top: 15px;">Then enter a 6-digit code from your authenticator app:</div>
             <input type="text" class="modal-input" id="totp-input" maxlength="6" placeholder="000000" inputmode="numeric">
             <button class="modal-btn modal-btn-primary" onclick="verify2FA()">Verify & Enable</button>
             <button class="modal-btn modal-btn-secondary" onclick="sessionStorage.removeItem('sentinel_token'); location.reload()">Cancel & Logout</button>
@@ -150,124 +553,272 @@
         let currentPin = "";
         let currentUser = "";
         let totpSecret = "";
+        let isAuthenticated = sessionStorage.getItem('sentinel_token') === 'valid';
 
+        // --- TIME & DATE ---
         function updateClock() {
             const now = new Date();
             document.getElementById('live-time').innerText = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            document.getElementById('live-date').innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' });
+            document.getElementById('live-date').innerText = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         }
         setInterval(updateClock, 1000); updateClock();
+        
+        // --- WEATHER FETCH (Open-Meteo via Geolocation fallback to IP) ---
+        async function fetchWeather() {
+            try {
+                // Get approx location from IP API
+                const locResp = await fetch('https://ipapi.co/json/');
+                const loc = await locResp.json();
+                if(loc.latitude && loc.longitude) {
+                    const wResp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`);
+                    const w = await wResp.json();
+                    if(w.current) {
+                        document.getElementById('weather-temp').innerText = Math.round(w.current.temperature_2m) + '°F';
+                        
+                        // Map WMO weather codes to emojis and descriptions
+                        const code = w.current.weather_code;
+                        let icon = '☁️', desc = 'Cloudy';
+                        if(code === 0) { icon = '☀️'; desc = 'Clear sky'; }
+                        else if(code === 1 || code === 2) { icon = '⛅'; desc = 'Partly cloudy'; }
+                        else if(code === 3) { icon = '☁️'; desc = 'Overcast'; }
+                        else if(code >= 45 && code <= 48) { icon = '🌫️'; desc = 'Fog'; }
+                        else if(code >= 51 && code <= 67) { icon = '🌧️'; desc = 'Rain'; }
+                        else if(code >= 71 && code <= 77) { icon = '❄️'; desc = 'Snow'; }
+                        else if(code >= 80 && code <= 82) { icon = '🌦️'; desc = 'Showers'; }
+                        else if(code >= 95) { icon = '⛈️'; desc = 'Thunderstorm'; }
+                        
+                        document.getElementById('weather-icon').innerText = icon;
+                        document.getElementById('weather-desc').innerText = desc;
+                    }
+                }
+            } catch (e) {
+                console.log("Weather fetch failed", e);
+                document.getElementById('weather-desc').innerText = "Unavailable";
+            }
+        }
+        fetchWeather();
+        setInterval(fetchWeather, 15 * 60 * 1000); // 15 mins
 
+        // --- ACTIVITY LOG FETCH ---
+        async function fetchAuditLog() {
+            try {
+                const r = await fetch('/api/audit');
+                const logs = await r.json();
+                const list = document.getElementById('audit-list');
+                list.innerHTML = '';
+                
+                // Show up to 4 most recent events
+                const recent = logs.slice(0, 4);
+                if(recent.length === 0) {
+                    list.innerHTML = '<li class="audit-item"><span style="color:#666">No recent events</span></li>';
+                    return;
+                }
+                
+                recent.forEach(log => {
+                    const li = document.createElement('li');
+                    li.className = 'audit-item';
+                    
+                    const time = new Date(log.timestamp * 1000);
+                    const timeStr = time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    let actionColor = '#9ca3af';
+                    if(log.action.includes('ARM')) actionColor = '#ef4444';
+                    else if(log.action.includes('DISARM')) actionColor = '#10b981';
+                    
+                    li.innerHTML = `<span style="color:${actionColor}">${log.action} (${log.user})</span> <span class="audit-time">${timeStr}</span>`;
+                    list.appendChild(li);
+                });
+            } catch(e) {
+                // If endpoint doesn't exist or not authed, just hide/fail silently
+            }
+        }
+        fetchAuditLog();
+        setInterval(fetchAuditLog, 10000);
+
+        // --- ZONES FETCH ---
+        async function fetchZones() {
+            try {
+                const r = await fetch('/api/zones');
+                const zones = await r.json();
+                const grid = document.getElementById('zone-grid');
+                grid.innerHTML = '';
+                
+                if(!zones || zones.length === 0) {
+                    grid.innerHTML = '<div style="color:#666; font-size:12px;">No zones configured</div>';
+                    return;
+                }
+                
+                zones.forEach(z => {
+                    const card = document.createElement('div');
+                    card.className = 'zone-card' + (z.open ? ' open' : '');
+                    
+                    const stateText = z.open ? 'OPEN' : 'CLOSED';
+                    card.innerHTML = `<span class="zone-name" title="${z.name}">${z.name}</span> <span class="zone-state">${stateText}</span>`;
+                    grid.appendChild(card);
+                });
+            } catch(e) {}
+        }
+        fetchZones();
+        setInterval(fetchZones, 3000);
+
+        // --- CAMERA LOGIC ---
+        function refreshCamera() {
+            const cam = document.getElementById('camera-snapshot');
+            // Append timestamp to bust cache
+            cam.src = '/api/camera/0/snapshot?t=' + new Date().getTime();
+        }
+        setInterval(refreshCamera, 5000); // Refresh every 5s
+
+        // --- PANIC SLIDER LOGIC ---
+        const panicThumb = document.getElementById('panic-thumb');
+        const panicContainer = document.getElementById('panic-container');
+        let isDraggingPanic = false;
+        let startX = 0;
+
+        panicThumb.addEventListener('mousedown', (e) => {
+            isDraggingPanic = true;
+            startX = e.clientX - panicThumb.offsetLeft;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingPanic) return;
+            let newX = e.clientX - startX;
+            let maxX = panicContainer.offsetWidth - panicThumb.offsetWidth - 4;
+            
+            if (newX < 2) newX = 2;
+            if (newX > maxX) newX = maxX;
+            
+            panicThumb.style.left = newX + 'px';
+            
+            if (newX >= maxX * 0.95) {
+                // Trigger panic
+                isDraggingPanic = false;
+                panicThumb.style.left = maxX + 'px';
+                panicThumb.style.background = '#fff';
+                panicContainer.style.background = 'var(--alarm)';
+                document.querySelector('.panic-slider-text').style.color = '#fff';
+                document.querySelector('.panic-slider-text').innerText = 'PANIC TRIGGERED!';
+                
+                // Send panic request (requires auth/pin in real use, or an open endpoint)
+                fetch('/api/panic', { method: 'POST' }).catch(()=>{});
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isDraggingPanic) return;
+            isDraggingPanic = false;
+            // Snap back if not fully triggered
+            if(document.querySelector('.panic-slider-text').innerText !== 'PANIC TRIGGERED!') {
+                panicThumb.style.transition = 'left 0.3s';
+                panicThumb.style.left = '2px';
+                setTimeout(() => panicThumb.style.transition = 'none', 300);
+            }
+        });
+
+        // Touch support for Panic Slider
+        panicThumb.addEventListener('touchstart', (e) => {
+            isDraggingPanic = true;
+            startX = e.touches[0].clientX - panicThumb.offsetLeft;
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (!isDraggingPanic) return;
+            let newX = e.touches[0].clientX - startX;
+            let maxX = panicContainer.offsetWidth - panicThumb.offsetWidth - 4;
+            if (newX < 2) newX = 2;
+            if (newX > maxX) newX = maxX;
+            panicThumb.style.left = newX + 'px';
+            
+            if (newX >= maxX * 0.95) {
+                isDraggingPanic = false;
+                panicThumb.style.left = maxX + 'px';
+                panicThumb.style.background = '#fff';
+                panicContainer.style.background = 'var(--alarm)';
+                document.querySelector('.panic-slider-text').style.color = '#fff';
+                document.querySelector('.panic-slider-text').innerText = 'PANIC TRIGGERED!';
+                fetch('/api/panic', { method: 'POST' }).catch(()=>{});
+            }
+        });
+        document.addEventListener('touchend', () => {
+            if (!isDraggingPanic) return;
+            isDraggingPanic = false;
+            if(document.querySelector('.panic-slider-text').innerText !== 'PANIC TRIGGERED!') {
+                panicThumb.style.transition = 'left 0.3s';
+                panicThumb.style.left = '2px';
+                setTimeout(() => panicThumb.style.transition = 'none', 300);
+            }
+        });
+
+        // --- KEYPAD LOGIC ---
+        function openKeypad() {
+            if(isAuthenticated) {
+                // Already authenticated, just logout to lock it
+                sessionStorage.removeItem('sentinel_token');
+                location.reload();
+            } else {
+                document.getElementById('keypad-modal').classList.add('visible');
+            }
+        }
+        function closeKeypad() {
+            document.getElementById('keypad-modal').classList.remove('visible');
+            clr();
+        }
+        
         function press(n) { if(currentPin.length < 6) { currentPin += n; document.getElementById('pin-display').innerText = "*".repeat(currentPin.length); } }
         function clr() { currentPin = ""; document.getElementById('pin-display').innerText = ""; }
         
-        // Generate random Base32 secret (16 chars = 80 bits)
+        // Setup TOTP code logic copied from original
         function generateSecret() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
             let secret = '';
-            for(let i = 0; i < 16; i++) {
-                secret += chars[Math.floor(Math.random() * chars.length)];
-            }
+            for(let i = 0; i < 16; i++) { secret += chars[Math.floor(Math.random() * chars.length)]; }
             return secret;
         }
-        
-        // Send 2FA setup key via email
         async function showTOTPSetup(username) {
             try {
                 totpSecret = generateSecret();
                 currentUser = username;
-                
-                // Send setup key via email (works for config.pin user or regular users)
                 try {
-                    const emailResp = await fetch('/api/users/send-totp-email', {
+                    await fetch('/api/users/send-totp-email', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            name: username,
-                            totp_secret: totpSecret
-                        })
+                        body: JSON.stringify({ name: username, totp_secret: totpSecret })
                     });
-                    const emailData = await emailResp.json();
-                    console.log('2FA setup email sent:', emailData);
-                } catch(emailErr) {
-                    console.error('Failed to send 2FA setup email:', emailErr);
-                }
-                
-                // Store it and show the setup input
+                } catch(emailErr) { console.error('Failed email:', emailErr); }
                 document.getElementById('secret-input-box').value = '';
                 document.getElementById('totp-input').value = '';
-                
-                // Show modal
+                closeKeypad();
                 document.getElementById('totp-modal').classList.add('visible');
-                
-                console.log(`2FA setup initiated for ${username}. Secret sent to ${userEmail}`);
-            } catch(e) {
-                console.error(e);
-                alert('Error initiating 2FA setup. Please try again.');
-            }
+            } catch(e) { alert('Error initiating 2FA setup.'); }
         }
         
         async function verify2FA() {
             const enteredSecret = document.getElementById('secret-input-box').value.toUpperCase();
             const totpCode = document.getElementById('totp-input').value;
-            
-            if(!enteredSecret) {
-                alert('Please enter the setup key from your email');
-                return;
-            }
-            if(totpCode.length !== 6) {
-                alert('Please enter a 6-digit code');
-                return;
-            }
-            
-            // Verify the entered secret matches what we generated
-            if(enteredSecret !== totpSecret) {
-                alert('Setup key does not match. Please copy it exactly from your email.');
-                return;
-            }
-            
+            if(!enteredSecret || totpCode.length !== 6) { alert('Invalid input'); return; }
+            if(enteredSecret !== totpSecret) { alert('Setup key mismatch'); return; }
             try {
-                // Save TOTP secret to server
                 await fetch('/api/users/set-totp', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        name: currentUser,
-                        totp_secret: totpSecret
-                    })
+                    body: JSON.stringify({ name: currentUser, totp_secret: totpSecret })
                 });
-                
-                // Verify TOTP code works
                 const authResponse = await fetch('/api/auth', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        pin: currentPin,
-                        totp: totpCode,
-                        step: 'totp'
-                    })
+                    body: JSON.stringify({ pin: currentPin, totp: totpCode, step: 'totp' })
                 });
-                
                 const authData = await authResponse.json();
                 if(authData.authenticated) {
                     document.getElementById('totp-modal').classList.remove('visible');
-                    alert('2FA Enabled Successfully! You can now control the system.');
-                    check();
-                } else {
-                    alert('Invalid TOTP code. Please try again.');
-                }
-            } catch(e) {
-                console.error(e);
-                alert('Error setting up 2FA. Please try again.');
-            }
+                    alert('2FA Enabled Successfully!');
+                    grantAccess(authData);
+                } else { alert('Invalid TOTP code.'); }
+            } catch(e) { alert('Error setting up 2FA.'); }
         }
 
         async function submit() {
             try {
-                // Clear previous error
                 document.getElementById('pin-error-msg').innerText = '';
-                
-                // Step 1: Validate PIN first
                 const r = await fetch('/api/auth', { 
                     method: 'POST', 
                     headers: {'Content-Type': 'application/json'},
@@ -276,26 +827,57 @@
                 const d = await r.json();
                 
                 if(d.authenticated) {
-                    sessionStorage.setItem('sentinel_token', 'valid');
-                    currentUser = d.name;
-                    
-                    // Grant access (if 2FA required, it will be checked on disarm)
-                    document.getElementById('pin-entry').classList.remove('visible');
-                    document.getElementById('menu-section').classList.add('visible');
-                    if(d.is_admin) document.getElementById('admin-menu').style.display = "grid";
-                    check();
+                    grantAccess(d);
+                } else if(d.error === '2fa_setup_required') {
+                    showTOTPSetup(d.name);
+                } else if(d.error === 'totp_required') {
+                    // Quick TOTP prompt
+                    const totpCode = prompt("Enter your 6-digit Authenticator Code:");
+                    if(totpCode) {
+                        const r2 = await fetch('/api/auth', { 
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({pin: currentPin, totp: totpCode, step: 'totp'}) 
+                        });
+                        const d2 = await r2.json();
+                        if(d2.authenticated) grantAccess(d2);
+                        else { document.getElementById('pin-error-msg').innerText = 'INVALID 2FA'; clr(); }
+                    } else { clr(); }
                 } else { 
-                    // Show error in PIN entry modal
-                    document.getElementById('pin-error-msg').innerText = 'INVALID PIN - TRY AGAIN';
+                    document.getElementById('pin-error-msg').innerText = 'INVALID PIN';
                     clr(); 
                 }
             } catch(e) { 
-                console.error(e);
                 document.getElementById('pin-error-msg').innerText = 'ERROR - TRY AGAIN';
                 clr();
             }
         }
+        
+        function grantAccess(authData) {
+            sessionStorage.setItem('sentinel_token', 'valid');
+            isAuthenticated = true;
+            currentUser = authData.name;
+            closeKeypad();
+            
+            document.getElementById('btn-unlock-text').innerText = "LOCK CONSOLE";
+            document.getElementById('btn-unlock-text').style.background = "#4b5563";
+            
+            if(authData.is_admin) {
+                document.getElementById('admin-menu').style.display = "grid";
+            }
+            check(); // immediate refresh
+            fetchAuditLog();
+        }
 
+        // Apply access rules on load if token exists
+        if(isAuthenticated) {
+            document.getElementById('btn-unlock-text').innerText = "LOCK CONSOLE";
+            document.getElementById('btn-unlock-text').style.background = "#4b5563";
+            // Note: We don't know if they are admin just from the token on reload, 
+            // but the backend will reject admin endpoints anyway.
+            document.getElementById('admin-menu').style.display = "grid"; // Show links speculatively
+        }
+
+        // --- SYSTEM STATUS FETCH ---
         function updateUI(cfg) {
             const state = parseInt(cfg.state || 0);
             const isReady = !!(cfg.ready);
@@ -304,11 +886,13 @@
             display.innerText = (state === 0) ? (isReady ? "READY TO ARM" : "NOT READY") : "SYSTEM ARMED";
             display.className = "status-display " + ((state === 0) ? (isReady ? "ready" : "not-ready") : "armed");
             
-            document.getElementById('arm-buttons').style.display = (state === 0) ? "grid" : "none";
-            document.getElementById('disarm-buttons').style.display = (state !== 0) ? "block" : "none";
-            
-            if(cfg.uptime) document.getElementById('nvs-up').innerText = cfg.uptime;
-            if(cfg.mac) document.getElementById('nvs-mac').innerText = cfg.mac;
+            if(isAuthenticated) {
+                document.getElementById('arm-buttons').style.display = (state === 0) ? "grid" : "none";
+                document.getElementById('disarm-buttons').style.display = (state !== 0) ? "grid" : "none";
+            } else {
+                document.getElementById('arm-buttons').style.display = "none";
+                document.getElementById('disarm-buttons').style.display = "none";
+            }
         }
 
         async function check() {
@@ -319,47 +903,45 @@
                 
                 const r2 = await fetch('/status');
                 const d2 = await r2.json();
+                
+                // Temp
                 if(d2.temperature_f !== undefined) {
                     document.getElementById('temp-value').innerText = Math.round(d2.temperature_f) + '°F';
-                } else if(d2.temperature_c !== undefined) {
-                    // Fallback to calculating from Celsius if temperature_f not available
-                    document.getElementById('temp-value').innerText = Math.round((d2.temperature_c * 9/5) + 32) + '°F';
                 }
                 
-                // Update power status
-                const powerIndicator = document.getElementById('power-indicator');
-                const powerValue = document.getElementById('power-value');
-                if(d2.on_backup_power) {
-                    powerValue.innerText = 'BATTERY';
-                    powerIndicator.classList.add('active');
-                    powerIndicator.style.backgroundColor = '#ff9800';
-                } else {
-                    powerValue.innerText = 'AC';
-                    powerIndicator.classList.remove('active');
-                }
+                // Power
+                const pwrVal = document.getElementById('power-value');
+                if(d2.on_backup_power) { pwrVal.innerText = 'BATTERY'; pwrVal.className = 'ind-value warn'; } 
+                else { pwrVal.innerText = 'AC MAIN'; pwrVal.className = 'ind-value ok'; }
                 
-                // Update tamper status
-                const tamperIndicator = document.getElementById('tamper-indicator');
-                const tamperValue = document.getElementById('tamper-value');
-                if(d2.tamper_detected) {
-                    tamperValue.innerText = 'ALERT!';
-                    tamperIndicator.classList.add('active');
-                    tamperIndicator.style.backgroundColor = '#f44336';
-                } else {
-                    tamperValue.innerText = 'OK';
-                    tamperIndicator.classList.remove('active');
+                // Tamper
+                const tmpVal = document.getElementById('tamper-value');
+                if(d2.tamper_detected) { tmpVal.innerText = 'ALERT!'; tmpVal.className = 'ind-value alert'; } 
+                else { tmpVal.innerText = 'SECURE'; tmpVal.className = 'ind-value ok'; }
+                
+                // Network
+                const netVal = document.getElementById('net-value');
+                if(d2.network_state !== undefined) {
+                    if (d2.network_state === 3) { netVal.innerText = 'OFFLINE'; netVal.className = 'ind-value alert'; }
+                    else if (d2.network_state === 2) { netVal.innerText = 'LOCAL'; netVal.className = 'ind-value warn'; }
+                    else if (d2.network_state === 1) { netVal.innerText = 'ONLINE'; netVal.className = 'ind-value ok'; }
+                    else { netVal.innerText = 'UNKNOWN'; netVal.className = 'ind-value'; }
                 }
             } catch(e) { console.error(e); }
         }
 
         async function doAction(url, body) {
-            body.pin = currentPin; // Send current pin for validation
+            if(!isAuthenticated && !currentPin) {
+                openKeypad();
+                return;
+            }
+            body.pin = currentPin || "auth_token"; // Mocking token usage for frontend logic
             await fetch(url, { 
                 method: 'POST', 
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(body) 
             });
-            setTimeout(() => location.reload(), 500);
+            setTimeout(() => { location.reload(); }, 500);
         }
 
         setInterval(check, 4000);

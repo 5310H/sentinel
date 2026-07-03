@@ -1,5 +1,5 @@
 # --- COMPILER & EXECUTABLE (Native x86_64, NOT cross-compiler) ---
-CC = /usr/bin/gcc
+CC = gcc
 CFLAGS_BASE = -g -O0 -Wall
 TARGET = sentinel_test
 
@@ -12,6 +12,7 @@ ENGINE_DIR   = $(COMP_BASE)/engine
 HAL_DIR      = $(COMP_BASE)/hardware
 SECURITY_DIR = $(COMP_BASE)/security
 CAMERA_DIR   = $(COMP_BASE)/camera
+NETWORK_WATCHDOG_DIR = $(COMP_BASE)/network_watchdog
 # --- ESPHome API Components ---
 ESPHOME_API_DIR = ../components/esphome_api
 ESPHOME_C_API_DIR = ../components/esphome-c-api
@@ -19,7 +20,7 @@ NOISE_DIR = ../components/noise-c
 
 # --- INCLUDES ---
 INCLUDES = -I$(STORAGE_DIR) -I$(MONGOOSE_DIR) \
-           -I$(HAL_DIR) -I$(MQTT_APP_DIR) -I$(ENGINE_DIR) -I$(SECURITY_DIR) -I$(CAMERA_DIR) -I$(ESPHOME_API_DIR) \
+           -I$(HAL_DIR) -I$(MQTT_APP_DIR) -I$(ENGINE_DIR) -I$(SECURITY_DIR) -I$(CAMERA_DIR) -I$(ESPHOME_API_DIR) -I$(NETWORK_WATCHDOG_DIR) \
            -I$(ESPHOME_C_API_DIR)/include -I$(ESPHOME_C_API_DIR)/src/proto -I$(ESPHOME_C_API_DIR)/src -I$(NOISE_DIR)/include -I$(NOISE_DIR)/src/protocol -I.
 
 # --- COMPILER FLAGS (Native Linux build, NOT ESP-IDF) ---
@@ -75,6 +76,7 @@ OBJ = $(STORAGE_DIR)/storage_mgr.o \
       $(SECURITY_DIR)/session_mgr.o \
       $(SECURITY_DIR)/audit_log.o \
       $(CAMERA_DIR)/camera_zones.o \
+      $(NETWORK_WATCHDOG_DIR)/network_watchdog.o \
       matter_mock.o \
       esphome_mock.o \
       camera_mock.o \
@@ -109,7 +111,7 @@ $(COMP_BASE)/%.o: $(COMP_BASE)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	find .. -name "*.o" -delete
+	rm -f $(OBJ)
 	rm -f $(TARGET) test_encrypted_connection test_noise test_esphome_client test_esphome_basic
 
 .PHONY: all clean

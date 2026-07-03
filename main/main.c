@@ -44,6 +44,7 @@
 // #include "zigbee_scenes.h"   // Zigbee scene control (Phase 3)
 // #include "zigbee_automations.h"   // Zigbee automation rules (Phase 3)
 #include "scheduler.h" // Task scheduler for automation and scheduling
+#include "network_watchdog.h" // Network connectivity watchdog
 
 // USE EXTERN: Do not re-define them here
 extern const char version_txt_start[] asm("_binary_version_txt_start");
@@ -76,6 +77,40 @@ static int g_log_idx = 0;
 static uint32_t g_log_seq = 0;
 static uint32_t g_log_seqs[MAX_LOG_LINES];
 static vprintf_like_t s_prev_logging_func = NULL;
+
+// --- Network Error Relays Helper ---
+static void trigger_network_relays(int state) {
+  storage_lock();
+  for (int i = 0; i < storage_get_relay_count(); i++) {
+    relay_t *r = storage_get_relay(i);
+    // Only physical relays (id 1-8 map to index 0-7)
+    if (r && r->id >= 1 && r->id <= 8) {
+      if (strcmp(r->type, "trouble") == 0 || strcmp(r->type, "network") == 0) {
+        hal_set_relay(r->id - 1, state);
+      }
+    }
+  }
+  storage_unlock();
+}
+
+// --- Network Watchdog Callback ---
+static void on_network_state_change(net_watchdog_state_t state) {
+  if (state == NET_WATCHDOG_STATE_OFFLINE || state == NET_WATCHDOG_STATE_LOCAL_ONLY) {
+    ESP_LOGW(TAG, "Network disconnected or local only! Triggering alert.");
+    // Update display with local alert
+    display_update_status(NULL, "INTERNET OFFLINE");
+    
+    // Turn on Network Error relays configured in relays.json
+    trigger_network_relays(1);
+  } else if (state == NET_WATCHDOG_STATE_ONLINE) {
+    ESP_LOGI(TAG, "Internet connection restored.");
+    display_update_status(NULL, "INTERNET ONLINE");
+    
+    // Turn off Network Error relays
+    trigger_network_relays(0);
+  }
+}
+
 
 int app_log_vprintf(const char *fmt, va_list args) {
   // 1. Write to standard UART (keep original behavior)
@@ -119,6 +154,25 @@ extern bool is_ready(void);
 extern const char *engine_get_violation_name(void);
 extern const char *engine_get_violation_type(void);
 
+// --- HTTP to HTTPS Redirect Handler ---
+static void http_redirect_fn(struct mg_connection *c, int ev, void *ev_data) {
+  if (ev == MG_EV_HTTP_MSG) {
+    struct mg_http_message *hm = (struct mg_http_message *)ev_data;
+    struct mg_str *host = mg_http_get_header(hm, "Host");
+    if (host != NULL) {
+      char redirect_url[256];
+      snprintf(redirect_url, sizeof(redirect_url), "https://%.*s%.*s",
+               (int) host->len, host->ptr,
+               (int) hm->uri.len, hm->uri.ptr);
+      char headers[256];
+      snprintf(headers, sizeof(headers), "Location: %s\r\n", redirect_url);
+      mg_http_reply(c, 301, headers, "");
+    } else {
+      mg_http_reply(c, 400, "", "Bad Request");
+    }
+  }
+}
+
 // --- Mongoose Web Handler with Diagnostics Endpoints ---
 // static void fn(struct mg_connection *c, int ev, void *ev_data, void *fn_data)
 // {
@@ -133,6 +187,31 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) { // New
     mg_tls_init(c, &opts);
   } else if (ev == MG_EV_HTTP_MSG) {
     struct mg_http_message *hm = (struct mg_http_message *)ev_data;
+
+    // --- SECURITY OVERRIDES ---
+    // 1. Rate Limiting (10 requests per second globally)
+    static uint32_t request_count = 0;
+    static time_t window_start = 0;
+    time_t now = time(NULL);
+    if (now - window_start >= 1) {
+      window_start = now;
+      request_count = 0;
+    }
+    request_count++;
+    if (request_count > 10) {
+      mg_http_reply(c, 429, "Content-Type: application/json\r\n", "{\"error\":\"Too Many Requests\"}");
+      return;
+    }
+
+    // 2. CSRF Protection for modifying requests
+    if (mg_vcasecmp(&hm->method, "POST") == 0 || mg_vcasecmp(&hm->method, "PUT") == 0 || mg_vcasecmp(&hm->method, "DELETE") == 0) {
+      struct mg_str *csrf = mg_http_get_header(hm, "X-CSRF-Token");
+      if (csrf == NULL) {
+        mg_http_reply(c, 403, "Content-Type: application/json\r\n", "{\"error\":\"Missing CSRF token\"}");
+        return;
+      }
+    }
+    // --------------------------
 
     // 1. USER MGMT
     if (mg_strcmp(hm->uri, mg_str("/api/users")) == 0) {
@@ -2810,7 +2889,7 @@ void mongoose_task(void *pvParameters) {
 
   struct mg_mgr mgr;
   mg_mgr_init(&mgr);
-  mg_http_listen(&mgr, "http://0.0.0.0:80", fn, NULL);
+  mg_http_listen(&mgr, "http://0.0.0.0:80", http_redirect_fn, NULL);
   mg_http_listen(&mgr, "https://0.0.0.0:443", fn, (void *)1);
   for (;;) {
     mg_mgr_poll(&mgr, 50);
@@ -3144,6 +3223,11 @@ void app_main(void) {
   // 9. Launch Tasks
   xTaskCreate(monitor_task, "monitor", 4096, NULL, 10, NULL);
   xTaskCreate(mongoose_task, "mongoose", 8192, NULL, 5, NULL);
+
+  // Start Network Watchdog
+  uint32_t wd_interval = storage_get_config()->watchdog_network_sec / 60;
+  if (wd_interval == 0) wd_interval = 15; // default 15 minutes
+  network_watchdog_start(wd_interval, on_network_state_change);
 
   // Add main task to watchdog
   esp_task_wdt_add(NULL);

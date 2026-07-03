@@ -6,6 +6,7 @@
 #include "system_monitoring.h"
 #include "logging.h"
 #include "hardware_config.h"
+#include "network_watchdog.h"
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
@@ -604,6 +605,7 @@ int system_monitoring_get_diagnostics_json(char **json_str) {
     cJSON_AddNumberToObject(root, "event_count", status.event_count);
     cJSON_AddBoolToObject(root, "rtc_synchronized", status.rtc_synchronized);
     cJSON_AddNumberToObject(root, "rtc_battery_ok", status.rtc_battery_ok);
+    cJSON_AddNumberToObject(root, "network_state", network_watchdog_get_state());
     
     *json_str = cJSON_Print(root);
     cJSON_Delete(root);

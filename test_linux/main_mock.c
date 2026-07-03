@@ -11,13 +11,17 @@
 #include "system_monitoring.h"
 #include "tuya_mock.h"
 #include "user_mgr.h"
+#include "network_watchdog.h"
+#include "hal.h"
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <termios.h>
+#endif
 #include <unistd.h>
 
 // --- LOGGING BUFFER ---
@@ -101,6 +105,31 @@ void get_json_str(struct mg_str body, const char *path, char *dst,
   }
 }
 // --- 3. GLUE LOGIC ---
+// --- Network Error Relays Helper ---
+static void trigger_network_relays(int state) {
+  storage_lock();
+  for (int i = 0; i < storage_get_relay_count(); i++) {
+    relay_t *r = storage_get_relay(i);
+    // Only physical relays (id 1-8 map to index 0-7)
+    if (r && r->id >= 1 && r->id <= 8) {
+      if (strcmp(r->type, "trouble") == 0 || strcmp(r->type, "network") == 0) {
+        hal_set_relay(r->id - 1, state);
+      }
+    }
+  }
+  storage_unlock();
+}
+
+static void on_network_state_change(net_watchdog_state_t state) {
+  if (state == NET_WATCHDOG_STATE_OFFLINE || state == NET_WATCHDOG_STATE_LOCAL_ONLY) {
+    printf("[WATCHDOG] Network disconnected or local only! Triggering alert.\n");
+    trigger_network_relays(1);
+  } else if (state == NET_WATCHDOG_STATE_ONLINE) {
+    printf("[WATCHDOG] Internet connection restored.\n");
+    trigger_network_relays(0);
+  }
+}
+
 // 1. Rename the function to __wrap_...
 keypad_result_t __wrap_engine_check_keypad(const char *pin) {
   keypad_result_t res = {false, false, "None"};
@@ -1906,17 +1935,21 @@ void web_handler(struct mg_connection *c, int ev, void *ev_data) {
 
 // --- 6. TERMINAL SETTINGS ---
 void set_conio_terminal_mode() {
+#ifndef _WIN32
   struct termios new_termios;
   tcgetattr(0, &new_termios);
   new_termios.c_lflag &= ~(ICANON | ECHO);
   tcsetattr(0, TCSANOW, &new_termios);
+#endif
 }
 
 void reset_terminal_mode() {
+#ifndef _WIN32
   struct termios orig_termios;
   tcgetattr(0, &orig_termios);
   orig_termios.c_lflag |= (ICANON | ECHO);
   tcsetattr(0, TCSANOW, &orig_termios);
+#endif
 }
 
 // --- 7. MAIN LOOP ---
@@ -1972,6 +2005,11 @@ int main(void) {
   monitor_init();
 
   g_network_up = true;
+  
+  int watchdog_minutes = storage_get_config()->watchdog_network_sec > 0 ? 
+                         storage_get_config()->watchdog_network_sec / 60 : 15;
+  if (watchdog_minutes == 0) watchdog_minutes = 15;
+  network_watchdog_start(watchdog_minutes, on_network_state_change);
 
   start_sentinel_mqtt();
   storage_debug_print();
@@ -2012,8 +2050,10 @@ int main(void) {
   // gracefully)
   mg_listen(&mgr, "tcp://0.0.0.0:6053", esphome_reject_handler, NULL);
 
+#ifndef _WIN32
   int flags = fcntl(0, F_GETFL, 0);
   fcntl(0, F_SETFL, flags | O_NONBLOCK);
+#endif
 
   char pin_buffer[16] = {0};
   int pin_idx = 0;

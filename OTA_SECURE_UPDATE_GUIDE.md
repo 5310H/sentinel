@@ -162,7 +162,7 @@ file=@/path/to/firmware.bin
 **Response:**
 ```json
 {
-  "version": "2.4.1",
+  "version": "2026.07.01",
   "running_partition": "ota_0",
   "boot_partition": "ota_0",
   "ota_capable": true
@@ -372,7 +372,7 @@ idf.py build
 idf.py monitor
 
 # Look for boot message:
-# I (123) SENTINEL: Sentinel-ESP v2.4.1 starting...
+# I (123) SENTINEL: Sentinel-ESP v2026.07.01 starting...
 ```
 
 ### Setting Version Number

@@ -14,7 +14,7 @@
 ├──────────────────┴────────────────────┴────────────────────┤
 │  Scheduler (Cron/Intervals) | Device Integrations (ESPHome) │
 ├────────────────────────────────────────────────────────────┤
-│              FreeRTOS Real-Time Kernel (3 Tasks)            │
+│              FreeRTOS Real-Time Kernel (4 Tasks)            │
 ├────────────────────────────────────────────────────────────┤
 │  Storage (SPIFFS/NVS) | Networking (W5500) | Hardware HAL   │
 └────────────────────────────────────────────────────────────┘
@@ -84,6 +84,26 @@ while (true) {
 - DHCP/IP configuration
 - Network status tracking (global `g_network_up` flag)
 - Recovers from network loss with automatic reconnection
+
+### Task 4: network_watchdog_task (Priority: 5, Normal)
+**Purpose**: Tiered network health monitoring and dynamic alert relays
+
+```c
+while (s_running) {
+    // Wait interval (default 15 mins)
+    // Check local gateway (DNS port 53 / Web UI port 80)
+    // Check primary external (1.1.1.1 port 53)
+    // Check backup external (8.8.8.8 port 53)
+    // Update global state and trigger network relays on failure
+}
+```
+
+**Responsibilities**:
+- Detects partial outages (local-only mode) vs total offline states
+- Safely probes external internet without relying on specific cloud APIs
+- Triggers all relays configured as `network` or `trouble` when the internet is unreachable
+- Operates on a dedicated non-blocking timer to avoid stalling main processing
+- Updates diagnostic JSON payload (`system_monitoring`) for UI visibility
 
 ---
 

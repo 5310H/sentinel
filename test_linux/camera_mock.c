@@ -419,7 +419,16 @@ int camera_mgr_save_snapshot_to_sd(int camera_id, int zone_id,
 
     time_t now = time(NULL);
     struct tm timeinfo;
+#ifdef _WIN32
+    struct tm *ti = localtime(&now);
+    if (ti) {
+        timeinfo = *ti;
+    } else {
+        memset(&timeinfo, 0, sizeof(timeinfo));
+    }
+#else
     localtime_r(&now, &timeinfo);
+#endif
     
     char filename[128];
     snprintf(filename, sizeof(filename), 

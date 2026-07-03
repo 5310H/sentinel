@@ -130,6 +130,15 @@ Controls output devices (sirens, lights, locks, etc.)
       "gpio_pin": 5,
       "normally_open": false,
       "pulse_duration_ms": 3000
+    },
+    {
+      "index": 3,
+      "name": "Network Alert Buzzer",
+      "type": "network",
+      "description": "Buzzer or indicator for network failure",
+      "gpio_pin": 13,
+      "normally_open": true,
+      "pulse_duration_ms": 0
     }
   ]
 }
@@ -197,6 +206,7 @@ System settings, credentials, and preferences
     "arm_delay_seconds": 30,
     "entry_delay_seconds": 20,
     "siren_duration_seconds": 300,
+    "watchdog_network_sec": 900,
     "master_pin": "1234",
     "log_level": 2
   }
@@ -206,6 +216,7 @@ System settings, credentials, and preferences
 - `arm_delay_seconds`: Time before armed mode activates (exit delay)
 - `entry_delay_seconds`: Time to enter PIN before alarm triggers
 - `siren_duration_seconds`: How long siren blares (0 = indefinite until disarmed)
+- `watchdog_network_sec`: Network connection test interval (0 = off, defaults to 900 / 15 mins)
 - `log_level`: 0=DEBUG, 1=INFO, 2=WARN (default), 3=ERROR, 4=CRITICAL
 
 #### Network
